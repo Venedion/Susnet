@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <domain-config>
+        <domain includeSubdomains="true">learn.uph.edu</domain>
+        <pin-set>
+            <pin digest="SHA-256">1YsYJ4fzLtelqcU9g9b4DAQfro7p6yKI3XixpzsD7eI=</pin>
+            <pin digest="SHA-256">KqkYYX5LYAYP7XGemqzbtPPIA8x7BS/BbOIcAXf3j2k=</pin>
+        </pin-set>
+        <trustkit-config enforcePinning="false">
+            <report-uri>http://localhost/susnet-pin-report</report-uri>
+        </trustkit-config>
+    </domain-config>
+</network-security-config>

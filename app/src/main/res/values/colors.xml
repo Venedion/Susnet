@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+        <color name="surface_page">#FAFAFA</color>
+        <color name="surface_card">#F1EFE8</color>
+
+        <color name="text_primary">#1A1A1A</color>
+        <color name="text_secondary">#5F5E5A</color>
+
+        <color name="text_success">#27500A</color>
+        <color name="bg_success">#EAF3DE</color>
+
+        <color name="text_warning">#633806</color>
+        <color name="bg_warning">#FAEEDA</color>
+
+        <color name="text_danger">#791F1F</color>
+        <color name="bg_danger">#FCEBEB</color>
+</resources>

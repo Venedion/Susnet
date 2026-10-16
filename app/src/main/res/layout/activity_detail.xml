@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/detailRoot"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/surface_page">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="16dp">
+
+        <TextView
+            android:id="@+id/textDetailSsid"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Cafe_WiFi"
+            android:textSize="19sp"
+            android:textStyle="bold"
+            android:textColor="@color/text_primary" />
+
+        <TextView
+            android:id="@+id/textDetailScore"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:layout_marginBottom="16dp"
+            android:text="Skor 62 — Waspada"
+            android:textSize="15sp"
+            android:textColor="@color/text_warning" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Rincian tiap sinyal"
+            android:textSize="15sp"
+            android:textStyle="bold"
+            android:textColor="@color/text_primary"
+            android:layout_marginBottom="8dp" />
+
+        <include layout="@layout/item_explanation_card" android:id="@+id/explainBssid" />
+        <include layout="@layout/item_explanation_card" android:id="@+id/explainTls" />
+        <include layout="@layout/item_explanation_card" android:id="@+id/explainSignal" />
+        <include layout="@layout/item_explanation_card" android:id="@+id/explainLatency" />
+        <include layout="@layout/item_explanation_card" android:id="@+id/explainArp" />
+
+        <LinearLayout
+            android:id="@+id/actionCard"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:background="@drawable/bg_status_card_warning"
+            android:padding="16dp"
+            android:layout_marginTop="8dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Yang disarankan"
+                android:textSize="15sp"
+                android:textStyle="bold"
+                android:textColor="@color/text_warning" />
+
+            <TextView
+                android:id="@+id/textRecommendedAction"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:text="Sebaiknya berhati-hati."
+                android:textSize="14sp"
+                android:textColor="@color/text_warning" />
+        </LinearLayout>
+
+    </LinearLayout>
+</ScrollView>

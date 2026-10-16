@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Membungkus semua elemen untuk diperkecil 75% di tengah -->
+    <group
+        android:pivotX="54"
+        android:pivotY="54"
+        android:scaleX="0.75"
+        android:scaleY="0.75">
+
+        <!-- Bentuk Perisai (Shield) Keamanan berwarna Cyan -->
+        <path
+            android:fillColor="#00000000"
+            android:strokeColor="#06B6D4"
+            android:strokeWidth="5"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round"
+            android:pathData="M54,18 L22,32 V54 C22,72 36,86 54,94 C72,86 86,72 86,54 V32 Z" />
+
+        <!-- Gelombang Wi-Fi Luar berwarna Putih -->
+        <path
+            android:fillColor="#00000000"
+            android:strokeColor="#F8FAFC"
+            android:strokeWidth="5"
+            android:strokeLineCap="round"
+            android:pathData="M 32,46 Q 54,28 76,46" />
+
+        <!-- Gelombang Wi-Fi Tengah berwarna Putih -->
+        <path
+            android:fillColor="#00000000"
+            android:strokeColor="#F8FAFC"
+            android:strokeWidth="5"
+            android:strokeLineCap="round"
+            android:pathData="M 42,58 Q 54,48 66,58" />
+
+        <!-- Tanda Seru / Indikator Serangan (Suspect) berwarna Merah -->
+        <path
+            android:fillColor="#00000000"
+            android:strokeColor="#EF4444"
+            android:strokeWidth="6"
+            android:strokeLineCap="round"
+            android:pathData="M 54,66 L 54,74 M 54,82 L 54,82.1" />
+
+    </group>
+</vector>
