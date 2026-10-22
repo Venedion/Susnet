@@ -5,60 +5,117 @@
     android:layout_height="wrap_content"
     android:orientation="vertical"
     android:background="@drawable/bg_signal_card"
-    android:padding="14dp"
-    android:layout_marginBottom="10dp">
+    android:padding="16dp"
+    android:layout_marginBottom="12dp">
 
-    <LinearLayout
+    <RelativeLayout
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:gravity="center_vertical">
-
-        <ImageView
-            android:id="@+id/iconExplainLeading"
-            android:layout_width="22dp"
-            android:layout_height="22dp"
-            android:src="@drawable/ic_router"
-            android:contentDescription="@null"
-            app:tint="@color/text_secondary" />
+        android:layout_height="wrap_content">
 
         <TextView
             android:id="@+id/textExplainLabel"
-            android:layout_width="0dp"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:layout_marginStart="8dp"
-            android:text="Alamat wifi"
+            android:layout_alignParentStart="true"
+            android:layout_centerVertical="true"
+            android:layout_toStartOf="@id/layoutStatusBadge"
+            android:layout_marginEnd="8dp"
+            android:text="Alamat WiFi"
             android:textSize="15sp"
             android:textStyle="bold"
             android:textColor="@color/text_primary" />
 
-        <ImageView
-            android:id="@+id/iconExplainStatus"
-            android:layout_width="16dp"
-            android:layout_height="16dp"
-            android:src="@drawable/ic_check_circle"
-            android:contentDescription="@null"
-            app:tint="@color/text_success" />
-
-        <TextView
-            android:id="@+id/textExplainStatus"
+        <LinearLayout
+            android:id="@+id/layoutStatusBadge"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginStart="4dp"
-            android:text="Normal"
-            android:textSize="14sp"
-            android:textStyle="bold"
-            android:textColor="@color/text_success" />
-    </LinearLayout>
+            android:layout_alignParentEnd="true"
+            android:layout_centerVertical="true"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+
+            <ImageView
+                android:id="@+id/iconExplainStatus"
+                android:layout_width="14dp"
+                android:layout_height="14dp"
+                android:src="@drawable/ic_status_normal"
+                android:contentDescription="@null" />
+
+            <TextView
+                android:id="@+id/textExplainStatus"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="4dp"
+                android:text="Normal"
+                android:textSize="13sp"
+                android:textStyle="bold"
+                android:textColor="@color/text_success" />
+        </LinearLayout>
+    </RelativeLayout>
 
     <TextView
         android:id="@+id/textExplainDetail"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="6dp"
+        android:layout_marginTop="8dp"
         android:text="Penjelasan akan muncul di sini."
         android:textSize="13sp"
+        android:lineSpacingExtra="2dp"
         android:textColor="@color/text_secondary" />
+
+    <LinearLayout
+        android:id="@+id/layoutDetectedDetails"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:layout_marginTop="12dp"
+        android:background="@drawable/bg_network_info_pill"
+        android:padding="12dp"
+        android:visibility="gone">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="YANG TERDETEKSI"
+            android:textSize="11sp"
+            android:textStyle="bold"
+            android:textColor="@color/text_secondary" />
+
+        <TextView
+            android:id="@+id/textDetectedContent"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:text="Detail deteksi"
+            android:textSize="12sp"
+            android:textColor="@color/text_primary" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/layoutPossibleCauses"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:layout_marginTop="10dp"
+        android:visibility="gone">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="KEMUNGKINAN PENYEBAB"
+            android:textSize="11sp"
+            android:textStyle="bold"
+            android:textColor="@color/text_secondary" />
+
+        <TextView
+            android:id="@+id/textPossibleCausesContent"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:text="• Kemungkinan penyebab 1\n• Kemungkinan penyebab 2"
+            android:textSize="12sp"
+            android:lineSpacingExtra="2dp"
+            android:textColor="@color/text_secondary" />
+    </LinearLayout>
 
 </LinearLayout>

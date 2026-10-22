@@ -1,17 +1,28 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-        <color name="surface_page">#FAFAFA</color>
-        <color name="surface_card">#F1EFE8</color>
+    <!-- Background & Surface -->
+    <color name="surface_page">#F6F3EC</color>
+    <color name="surface_card">#FFFFFF</color>
+    <color name="surface_card_border">#E2DDD2</color>
 
-        <color name="text_primary">#1A1A1A</color>
-        <color name="text_secondary">#5F5E5A</color>
+    <!-- Typography -->
+    <color name="text_primary">#1E1E1E</color>
+    <color name="text_secondary">#6B7280</color>
 
-        <color name="text_success">#27500A</color>
-        <color name="bg_success">#EAF3DE</color>
+    <!-- Status: Aman (Success / Green) -->
+    <color name="text_success">#1C5E33</color>
+    <color name="bg_success">#E2F0E6</color>
 
-        <color name="text_warning">#633806</color>
-        <color name="bg_warning">#FAEEDA</color>
+    <!-- Status: Waspada (Warning / Amber) -->
+    <color name="text_warning">#B47805</color>
+    <color name="bg_warning">#FEF3D6</color>
 
-        <color name="text_danger">#791F1F</color>
-        <color name="bg_danger">#FCEBEB</color>
+    <!-- Status: Bahaya (Danger / Red) -->
+    <color name="text_danger">#B91C1C</color>
+    <color name="bg_danger">#FDE8E5</color>
+
+    <!-- Bottom Navigation -->
+    <color name="nav_active">#1E1E1E</color>
+    <color name="nav_inactive">#9CA3AF</color>
+    <color name="nav_indicator">#E2DDD2</color>
 </resources>

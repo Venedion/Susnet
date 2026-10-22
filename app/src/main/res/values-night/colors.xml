@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Background & Surface Dark -->
+    <color name="surface_page">#121212</color>
+    <color name="surface_card">#1E1E1E</color>
+    <color name="surface_card_border">#2C2C2C</color>
+
+    <!-- Typography Dark -->
+    <color name="text_primary">#F3F4F6</color>
+    <color name="text_secondary">#9CA3AF</color>
+
+    <!-- Status: Aman (Success / Green) -->
+    <color name="text_success">#6EE7B7</color>
+    <color name="bg_success">#064E3B</color>
+
+    <!-- Status: Waspada (Warning / Amber) -->
+    <color name="text_warning">#FCD34D</color>
+    <color name="bg_warning">#78350F</color>
+
+    <!-- Status: Bahaya (Danger / Red) -->
+    <color name="text_danger">#FCA5A5</color>
+    <color name="bg_danger">#7F1D1D</color>
+
+    <!-- Bottom Navigation Dark -->
+    <color name="nav_active">#FFFFFF</color>
+    <color name="nav_inactive">#6B7280</color>
+    <color name="nav_indicator">#2C2C2C</color>
+</resources>

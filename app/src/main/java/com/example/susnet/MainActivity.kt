@@ -10,16 +10,19 @@ import android.os.Bundle
 import android.util.Log
 import android.view.View
 import android.view.animation.LinearInterpolator
+import android.widget.ImageButton
 import android.widget.ImageView
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
+import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.lifecycleScope
+import com.google.android.material.bottomnavigation.BottomNavigationView
 import com.example.susnet.data.BaselineStore
 import com.example.susnet.data.SusnetDatabase
 import com.example.susnet.detection.EvilTwinDetector
@@ -68,6 +71,8 @@ class MainActivity : AppCompatActivity() {
 
         setupThreatEvaluator()
         setupAnimations()
+        setupNightMode()
+        setupBottomNavigation()
 
         if (hasLocationPermission()) {
             runEvaluation()
@@ -82,6 +87,56 @@ class MainActivity : AppCompatActivity() {
         findViewById<View>(R.id.btnRefresh).setOnClickListener {
             runEvaluation()
         }
+    }
+
+    private fun setupBottomNavigation() {
+        val bottomNav = findViewById<BottomNavigationView>(R.id.bottomNavigation) ?: return
+        bottomNav.selectedItemId = R.id.navigation_home
+
+        bottomNav.setOnItemSelectedListener { item ->
+            when (item.itemId) {
+                R.id.navigation_home -> {
+                    true
+                }
+                R.id.navigation_history -> {
+                    Toast.makeText(this, "Halaman Riwayat", Toast.LENGTH_SHORT).show()
+                    true
+                }
+                R.id.navigation_settings -> {
+                    Toast.makeText(this, "Halaman Pengaturan", Toast.LENGTH_SHORT).show()
+                    true
+                }
+                else -> false
+            }
+        }
+    }
+
+    private fun setupNightMode() {
+        val btnNightMode = findViewById<ImageButton>(R.id.btnNightMode)
+        val isNight = isNightModeActive()
+        btnNightMode.setImageResource(if (isNight) R.drawable.ic_light_mode else R.drawable.ic_night_mode)
+        btnNightMode.contentDescription = if (isNight) "Mode Terang" else "Mode Malam"
+
+        btnNightMode.setOnClickListener {
+            val newNightMode = !isNightModeActive()
+            getSharedPreferences("susnet_prefs", MODE_PRIVATE)
+                .edit()
+                .putBoolean("pref_night_mode", newNightMode)
+                .apply()
+
+            AppCompatDelegate.setDefaultNightMode(
+                if (newNightMode) AppCompatDelegate.MODE_NIGHT_YES else AppCompatDelegate.MODE_NIGHT_NO
+            )
+        }
+    }
+
+    private fun isNightModeActive(): Boolean {
+        val prefs = getSharedPreferences("susnet_prefs", MODE_PRIVATE)
+        if (prefs.contains("pref_night_mode")) {
+            return prefs.getBoolean("pref_night_mode", false)
+        }
+        val currentNightMode = resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK
+        return currentNightMode == android.content.res.Configuration.UI_MODE_NIGHT_YES
     }
 
     override fun onResume() {
@@ -144,32 +199,32 @@ class MainActivity : AppCompatActivity() {
 
         val statusLabel: String
         val statusColorRes: Int
-        val statusIconRes: Int
+        val bgDrawableRes: Int
 
         when {
             result.threatLevel < 35 -> {
                 statusLabel = "Aman"
                 statusColorRes = R.color.text_success
-                statusIconRes = R.drawable.ic_check_circle
+                bgDrawableRes = R.drawable.bg_status_card_aman
             }
             result.threatLevel < 65 -> {
                 statusLabel = "Waspada"
                 statusColorRes = R.color.text_warning
-                statusIconRes = R.drawable.ic_alert_triangle
+                bgDrawableRes = R.drawable.bg_status_card_waspada
             }
             else -> {
                 statusLabel = "Bahaya"
                 statusColorRes = R.color.text_danger
-                statusIconRes = R.drawable.ic_alert_triangle
+                bgDrawableRes = R.drawable.bg_status_card_bahaya
             }
         }
 
-        findViewById<TextView>(R.id.textStatusLabel).text = statusLabel
-        findViewById<ImageView>(R.id.iconStatus).setImageResource(statusIconRes)
         val color = ContextCompat.getColor(this, statusColorRes)
+        findViewById<View>(R.id.statusCard)?.setBackgroundResource(bgDrawableRes)
+
+        findViewById<TextView>(R.id.textStatusLabel).text = statusLabel
         findViewById<TextView>(R.id.textScore).setTextColor(color)
         findViewById<TextView>(R.id.textStatusLabel).setTextColor(color)
-        findViewById<ImageView>(R.id.iconStatus).setColorFilter(color)
 
         val abnormalCount = listOf(
             result.bssidChangeScore,
@@ -187,32 +242,94 @@ class MainActivity : AppCompatActivity() {
         findViewById<TextView>(R.id.textStatusDetail).text = detailText
         findViewById<TextView>(R.id.textStatusDetail).setTextColor(color)
 
-        updateSignalCard(R.id.cardBssid, "Alamat wifi", R.drawable.ic_router, result.bssidChangeScore)
-        updateSignalCard(R.id.cardTls, "Sertifikat situs", R.drawable.ic_lock, result.tlsChangeScore)
-        updateSignalCard(R.id.cardSignal, "Sinyal", R.drawable.ic_router, result.signalInstabilityScore)
-        updateSignalCard(R.id.cardLatency, "Latency", R.drawable.ic_router, result.latencyDeviationScore)
-        updateSignalCard(R.id.cardArp, "Lalu lintas data", R.drawable.ic_share, result.configChangeScore)
+        val extraPill = findViewById<TextView>(R.id.textStatusExtraPill)
+        val btnDisconnect = findViewById<View>(R.id.btnDisconnectWifi)
+
+        if (result.threatLevel >= 65) {
+            extraPill?.visibility = View.GONE
+            btnDisconnect?.visibility = View.VISIBLE
+            btnDisconnect?.setOnClickListener {
+                try {
+                    startActivity(Intent(android.provider.Settings.ACTION_WIFI_SETTINGS))
+                } catch (e: Exception) {
+                    Toast.makeText(this, "Buka Pengaturan WiFi di HP Anda", Toast.LENGTH_SHORT).show()
+                }
+            }
+        } else {
+            btnDisconnect?.visibility = View.GONE
+            extraPill?.visibility = View.VISIBLE
+            extraPill?.setTextColor(color)
+            extraPill?.text = "GW 192.168.1.1 · DNS 192.168.1.1 · WPA2"
+        }
+
+        updateSignalCard(
+            R.id.cardBssid,
+            "Alamat WiFi",
+            R.drawable.ic_card_bssid,
+            result.bssidChangeScore,
+            "BSSID dikenal",
+            "BSSID baru, belum dikenal"
+        )
+        updateSignalCard(
+            R.id.cardTls,
+            "Sertifikat situs",
+            R.drawable.ic_card_tls,
+            result.tlsChangeScore,
+            "Pin cocok",
+            "Sertifikat tidak cocok"
+        )
+        updateSignalCard(
+            R.id.cardSignal,
+            "Sinyal",
+            R.drawable.ic_card_signal,
+            result.signalInstabilityScore,
+            "-52 dBm · stabil",
+            "Sinyal tidak stabil"
+        )
+        updateSignalCard(
+            R.id.cardLatency,
+            "Latency",
+            R.drawable.ic_card_latency,
+            result.latencyDeviationScore,
+            "38 ms · stabil",
+            "Latency tinggi"
+        )
+        updateSignalCard(
+            R.id.cardArp,
+            "Lalu lintas data",
+            R.drawable.ic_card_network,
+            result.configChangeScore,
+            "Gateway dan DNS sama",
+            "Gateway dan DNS berubah"
+        )
     }
 
     private fun updateSignalCard(
         includeId: Int,
         label: String,
         leadingIconRes: Int,
-        score: Int
+        score: Int,
+        normalSubtext: String,
+        abnormalSubtext: String
     ) {
         val cardRoot = findViewById<View>(includeId) ?: return
-        cardRoot.findViewById<TextView>(R.id.textCardLabel).text = label
-        cardRoot.findViewById<ImageView>(R.id.iconCardLeading).setImageResource(leadingIconRes)
+        cardRoot.findViewById<TextView>(R.id.textCardLabel)?.text = label
+        cardRoot.findViewById<ImageView>(R.id.iconCardLeading)?.setImageResource(leadingIconRes)
 
+        val subDetail = cardRoot.findViewById<TextView>(R.id.textCardSubDetail)
         val statusText = cardRoot.findViewById<TextView>(R.id.textCardStatus)
         val statusIcon = cardRoot.findViewById<ImageView>(R.id.iconCardStatus)
 
         if (score < 35) {
-            statusText.text = "Normal"
-            statusIcon.setImageResource(R.drawable.ic_check_circle)
+            subDetail?.text = normalSubtext
+            statusText?.text = "Normal"
+            statusText?.setTextColor(ContextCompat.getColor(this, R.color.text_success))
+            statusIcon?.setImageResource(R.drawable.ic_status_normal)
         } else {
-            statusText.text = "Berubah"
-            statusIcon.setImageResource(R.drawable.ic_alert_triangle)
+            subDetail?.text = abnormalSubtext
+            statusText?.text = "Berubah"
+            statusText?.setTextColor(ContextCompat.getColor(this, R.color.text_warning))
+            statusIcon?.setImageResource(R.drawable.ic_status_changed)
         }
     }
 
