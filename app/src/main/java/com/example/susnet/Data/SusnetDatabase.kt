@@ -6,13 +6,19 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 
 @Database(
-    entities = [NetworkEntity::class, AccessPointEntity::class, DetectionEventEntity::class],
-    version = 2
+    entities = [
+        NetworkEntity::class,
+        AccessPointEntity::class,
+        DetectionEventEntity::class,
+        NetworkConfigEntity::class
+    ],
+    version = 3
 )
 abstract class SusnetDatabase : RoomDatabase() {
 
     abstract fun baselineDao(): BaselineDao
     abstract fun detectionEventDao(): DetectionEventDao
+    abstract fun networkConfigDao(): NetworkConfigDao
 
     companion object {
         @Volatile
@@ -24,10 +30,7 @@ abstract class SusnetDatabase : RoomDatabase() {
                     context.applicationContext,
                     SusnetDatabase::class.java,
                     "susnet.db"
-                )
-                    .fallbackToDestructiveMigration()
-                    .build()
-                    .also { instance = it }
+                ).fallbackToDestructiveMigration().build().also { instance = it }
             }
     }
 }

@@ -13,7 +13,8 @@ class SignalStabilityMonitor(
     data class Result(
         val currentRssi: Int,
         val rssiStdDev: Double,
-        val signalInstabilityScore: Int
+        val signalInstabilityScore: Int,
+        val detail: String
     )
 
     fun evaluate(): Result {
@@ -27,7 +28,16 @@ class SignalStabilityMonitor(
         val stdDev = computeStdDev(recentRssi)
         val score = scoreFromStdDev(stdDev)
 
-        return Result(currentRssi, stdDev, score)
+        val detail = if (recentRssi.size < 2) {
+            "Kekuatan sinyal saat ini $currentRssi dBm. Baru ${recentRssi.size} pengukuran, " +
+                    "belum cukup untuk menilai kestabilan."
+        } else {
+            "Kekuatan sinyal saat ini $currentRssi dBm. Dari ${recentRssi.size} pengukuran terakhir, " +
+                    "simpangan baku ${"%.1f".format(stdDev)} dB (dianggap stabil jika di bawah " +
+                    "${STABLE_THRESHOLD.toInt()} dB)."
+        }
+
+        return Result(currentRssi, stdDev, score, detail)
     }
 
     private fun computeStdDev(values: ArrayDeque<Int>): Double {

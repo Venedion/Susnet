@@ -25,5 +25,6 @@ data class DetectionEventEntity(
     val bssidChangeScore: Int,
     val tlsChangeScore: Int,
     val signalInstabilityScore: Int,
-    val latencyDeviationScore: Int
+    val latencyDeviationScore: Int,
+    val configChangeScore: Int = 0
 )

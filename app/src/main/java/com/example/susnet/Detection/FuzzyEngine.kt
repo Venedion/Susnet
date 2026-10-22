@@ -8,6 +8,7 @@ private data class Rule(
     val tls: Level? = null,
     val signal: Level? = null,
     val latency: Level? = null,
+    val config: Level? = null,
     val consequent: Threat
 )
 
@@ -32,18 +33,29 @@ object FuzzyEngine {
     private val rules = listOf(
         Rule(bssid = Level.HIGH, consequent = Threat.BAHAYA),
         Rule(tls = Level.HIGH, consequent = Threat.BAHAYA),
+        Rule(config = Level.HIGH, consequent = Threat.BAHAYA),
         Rule(bssid = Level.MEDIUM, tls = Level.MEDIUM, consequent = Threat.BAHAYA),
+        Rule(bssid = Level.MEDIUM, config = Level.MEDIUM, consequent = Threat.BAHAYA),
+        Rule(tls = Level.MEDIUM, config = Level.MEDIUM, consequent = Threat.BAHAYA),
         Rule(signal = Level.HIGH, tls = Level.MEDIUM, consequent = Threat.BAHAYA),
         Rule(signal = Level.HIGH, bssid = Level.MEDIUM, consequent = Threat.BAHAYA),
         Rule(latency = Level.HIGH, tls = Level.MEDIUM, consequent = Threat.BAHAYA),
         Rule(latency = Level.HIGH, bssid = Level.MEDIUM, consequent = Threat.BAHAYA),
         Rule(bssid = Level.MEDIUM, consequent = Threat.WASPADA),
         Rule(tls = Level.MEDIUM, consequent = Threat.WASPADA),
+        Rule(config = Level.MEDIUM, consequent = Threat.WASPADA),
         Rule(signal = Level.HIGH, consequent = Threat.WASPADA),
         Rule(signal = Level.MEDIUM, consequent = Threat.WASPADA),
         Rule(latency = Level.HIGH, consequent = Threat.WASPADA),
         Rule(latency = Level.MEDIUM, consequent = Threat.WASPADA),
-        Rule(bssid = Level.LOW, tls = Level.LOW, signal = Level.LOW, latency = Level.LOW, consequent = Threat.AMAN)
+        Rule(
+            bssid = Level.LOW,
+            tls = Level.LOW,
+            signal = Level.LOW,
+            latency = Level.LOW,
+            config = Level.LOW,
+            consequent = Threat.AMAN
+        )
     )
 
     private fun firingStrength(
@@ -51,13 +63,15 @@ object FuzzyEngine {
         bssidDeg: Map<Level, Double>,
         tlsDeg: Map<Level, Double>,
         signalDeg: Map<Level, Double>,
-        latencyDeg: Map<Level, Double>
+        latencyDeg: Map<Level, Double>,
+        configDeg: Map<Level, Double>
     ): Double {
         val parts = mutableListOf<Double>()
         rule.bssid?.let { parts.add(bssidDeg.getValue(it)) }
         rule.tls?.let { parts.add(tlsDeg.getValue(it)) }
         rule.signal?.let { parts.add(signalDeg.getValue(it)) }
         rule.latency?.let { parts.add(latencyDeg.getValue(it)) }
+        rule.config?.let { parts.add(configDeg.getValue(it)) }
         return parts.minOrNull() ?: 0.0
     }
 
@@ -71,15 +85,17 @@ object FuzzyEngine {
         bssidChangeScore: Int,
         tlsChangeScore: Int,
         signalInstabilityScore: Int,
-        latencyDeviationScore: Int
+        latencyDeviationScore: Int,
+        configChangeScore: Int = 0
     ): Int {
         val bssidDeg = degrees(bssidChangeScore)
         val tlsDeg = degrees(tlsChangeScore)
         val signalDeg = degrees(signalInstabilityScore)
         val latencyDeg = degrees(latencyDeviationScore)
+        val configDeg = degrees(configChangeScore)
 
         val ruleStrengths = rules.map { rule ->
-            rule.consequent to firingStrength(rule, bssidDeg, tlsDeg, signalDeg, latencyDeg)
+            rule.consequent to firingStrength(rule, bssidDeg, tlsDeg, signalDeg, latencyDeg, configDeg)
         }
 
         val strengthPerThreat = Threat.values().associateWith { threat ->

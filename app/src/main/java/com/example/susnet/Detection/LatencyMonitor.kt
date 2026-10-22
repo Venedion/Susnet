@@ -18,12 +18,18 @@ class LatencyMonitor(
     data class Result(
         val currentLatencyMs: Long,
         val latencyStdDev: Double,
-        val latencyDeviationScore: Int
+        val latencyDeviationScore: Int,
+        val detail: String
     )
 
     suspend fun evaluate(): Result = withContext(Dispatchers.IO) {
         val latency = measureTcpHandshake()
-            ?: return@withContext Result(-1, 0.0, 0)
+            ?: return@withContext Result(
+                -1,
+                0.0,
+                0,
+                "Latency tidak dapat diukur: koneksi ke $host:$port gagal atau diblokir jaringan ini."
+            )
 
         recentLatencies.addLast(latency)
         if (recentLatencies.size > windowSize) {
@@ -31,7 +37,17 @@ class LatencyMonitor(
         }
 
         val stdDev = computeStdDev(recentLatencies)
-        Result(latency, stdDev, scoreFromStdDev(stdDev))
+
+        val detail = if (recentLatencies.size < 2) {
+            "Waktu respons ke $host saat ini $latency ms. Baru ${recentLatencies.size} pengukuran, " +
+                    "belum cukup untuk menilai kestabilan."
+        } else {
+            "Waktu respons ke $host saat ini $latency ms. Dari ${recentLatencies.size} pengukuran terakhir, " +
+                    "simpangan baku ${"%.0f".format(stdDev)} ms (dianggap stabil jika di bawah " +
+                    "${STABLE_THRESHOLD.toInt()} ms)."
+        }
+
+        Result(latency, stdDev, scoreFromStdDev(stdDev), detail)
     }
 
     private fun measureTcpHandshake(): Long? {
