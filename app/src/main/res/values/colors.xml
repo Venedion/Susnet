@@ -1,28 +1,75 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Background & Surface -->
     <color name="surface_page">#F6F3EC</color>
     <color name="surface_card">#FFFFFF</color>
-    <color name="surface_card_border">#E2DDD2</color>
+    <color name="surface_card_border">#E8E2D3</color>
 
-    <!-- Typography -->
-    <color name="text_primary">#1E1E1E</color>
-    <color name="text_secondary">#6B7280</color>
+    <color name="text_primary">#1F2A24</color>
+    <color name="text_secondary">#5E6B64</color>
 
-    <!-- Status: Aman (Success / Green) -->
-    <color name="text_success">#1C5E33</color>
-    <color name="bg_success">#E2F0E6</color>
+    <color name="text_success">#1E6B45</color>
+    <color name="bg_success">#E6F1EA</color>
 
-    <!-- Status: Waspada (Warning / Amber) -->
-    <color name="text_warning">#B47805</color>
-    <color name="bg_warning">#FEF3D6</color>
+    <color name="text_warning">#8A5A00</color>
+    <color name="bg_warning">#FBEBC8</color>
 
-    <!-- Status: Bahaya (Danger / Red) -->
-    <color name="text_danger">#B91C1C</color>
-    <color name="bg_danger">#FDE8E5</color>
+    <color name="text_danger">#A12B1F</color>
+    <color name="bg_danger">#FBE0DB</color>
 
-    <!-- Bottom Navigation -->
-    <color name="nav_active">#1E1E1E</color>
-    <color name="nav_inactive">#9CA3AF</color>
-    <color name="nav_indicator">#E2DDD2</color>
+    <color name="nav_active">#1F2A24</color>
+    <color name="nav_inactive">#5E6B64</color>
+    <color name="nav_indicator">#E8E2D3</color>
+
+    <color name="aman_bg">#F6F3EC</color>
+    <color name="aman_surface">#FFFFFF</color>
+    <color name="aman_border">#E8E2D3</color>
+    <color name="aman_border_normal">#E8E2D3</color>
+    <color name="aman_accent">#2F8F5B</color>
+    <color name="aman_text_accent">#1E6B45</color>
+    <color name="aman_chip_bg">#E6F1EA</color>
+    <color name="aman_tile">#E6F1EA</color>
+    <color name="aman_ink">#1F2A24</color>
+    <color name="aman_secondary">#5E6B64</color>
+    <color name="aman_nav_bg">#FBF9F4</color>
+    <color name="aman_nav_border">#E3DDCE</color>
+
+    <color name="waspada_bg">#FBF3E2</color>
+    <color name="waspada_surface">#FFFFFF</color>
+    <color name="waspada_border">#EBD9A8</color>
+    <color name="waspada_border_normal">#EFE3C6</color>
+    <color name="waspada_border_abnormal">#EBD9A8</color>
+    <color name="waspada_accent">#C98A12</color>
+    <color name="waspada_text_accent">#8A5A00</color>
+    <color name="waspada_chip_bg">#FBEBC8</color>
+    <color name="waspada_tile">#FBEBC8</color>
+    <color name="waspada_tile_normal">#FBF3E2</color>
+    <color name="waspada_ink">#2A2418</color>
+    <color name="waspada_secondary">#6B5F45</color>
+    <color name="waspada_nav_bg">#FDF8EC</color>
+    <color name="waspada_button_bg">#8A5A00</color>
+    <color name="waspada_button_text">#FFFFFF</color>
+
+    <color name="bahaya_bg">#FAEEEA</color>
+    <color name="bahaya_surface">#FFFFFF</color>
+    <color name="bahaya_border">#F0CFC8</color>
+    <color name="bahaya_border_normal">#EEDFD9</color>
+    <color name="bahaya_border_abnormal">#F0CFC8</color>
+    <color name="bahaya_accent">#C0392B</color>
+    <color name="bahaya_text_accent">#A12B1F</color>
+    <color name="bahaya_chip_bg">#FBE0DB</color>
+    <color name="bahaya_tile">#FBE0DB</color>
+    <color name="bahaya_tile_normal">#FAEEEA</color>
+    <color name="bahaya_ink">#2A1F1D</color>
+    <color name="bahaya_secondary">#6B5A56</color>
+    <color name="bahaya_nav_bg">#FDF6F3</color>
+    <color name="bahaya_button_bg">#B42318</color>
+    <color name="bahaya_button_text">#FFFFFF</color>
+
+    <color name="normal_chip_bg">#E6F1EA</color>
+    <color name="normal_chip_text">#1E6B45</color>
+    <color name="normal_tile_icon">#1E6B45</color>
+
+    <color name="gauge_zone_green">#382F8F5B</color>
+    <color name="gauge_zone_amber">#38C98A12</color>
+    <color name="gauge_zone_red">#38C0392B</color>
 </resources>

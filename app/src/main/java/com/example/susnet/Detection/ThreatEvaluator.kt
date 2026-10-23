@@ -26,7 +26,11 @@ class ThreatEvaluator(
         val tlsDetail: String,
         val signalDetail: String,
         val latencyDetail: String,
-        val configDetail: String
+        val configDetail: String,
+        val rssi: Int,
+        val latencyMs: Long,
+        val gatewayIp: String?,
+        val dnsServers: String?
     )
 
     suspend fun evaluateCurrentNetwork(): ThreatResult {
@@ -78,7 +82,11 @@ class ThreatEvaluator(
             tlsDetail = tlsResult.detail,
             signalDetail = signalResult.detail,
             latencyDetail = latencyResult.detail,
-            configDetail = configResult?.detail ?: notConnected
+            configDetail = configResult?.detail ?: notConnected,
+            rssi = signalResult.currentRssi,
+            latencyMs = latencyResult.currentLatencyMs,
+            gatewayIp = configResult?.gatewayIp,
+            dnsServers = configResult?.dnsServers
         )
     }
 }

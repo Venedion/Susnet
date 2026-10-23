@@ -15,8 +15,8 @@ private data class Rule(
 object FuzzyEngine {
 
     private fun trapezoid(x: Double, a: Double, b: Double, c: Double, d: Double): Double {
-        if (x <= a || x >= d) return 0.0
         if (x in b..c) return 1.0
+        if (x <= a || x >= d) return 0.0
         return if (x < b) (x - a) / (b - a) else (d - x) / (d - c)
     }
 

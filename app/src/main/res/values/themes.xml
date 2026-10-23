@@ -6,20 +6,13 @@
 
     <style name="Theme.Susnet" parent="Base.Theme.Susnet" />
 
-    <!-- Bottom Navigation Custom Styles -->
-    <style name="Widget.App.BottomNavigationView.ActiveIndicator" parent="Widget.Material3.BottomNavigationView.ActiveIndicator">
-        <item name="android:color">@color/nav_indicator</item>
-    </style>
-
     <style name="BottomNavTextAppearance.Active" parent="TextAppearance.Material3.LabelSmall">
         <item name="android:textSize">11sp</item>
         <item name="android:textStyle">bold</item>
-        <item name="android:textColor">@color/nav_active</item>
     </style>
 
     <style name="BottomNavTextAppearance.Inactive" parent="TextAppearance.Material3.LabelSmall">
         <item name="android:textSize">11sp</item>
         <item name="android:textStyle">normal</item>
-        <item name="android:textColor">@color/nav_inactive</item>
     </style>
 </resources>
