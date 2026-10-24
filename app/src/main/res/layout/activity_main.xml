@@ -1,25 +1,23 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/main"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical"
     android:background="@color/surface_page">
 
     <FrameLayout
         android:id="@+id/contentArea"
         android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="1">
+        android:layout_height="match_parent">
 
         <androidx.core.widget.NestedScrollView
             android:id="@+id/scrollContent"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:clipToPadding="false"
-            android:paddingBottom="16dp">
+            android:paddingBottom="96dp">
 
             <LinearLayout
                 android:layout_width="match_parent"
@@ -272,7 +270,7 @@
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:clipToPadding="false"
-            android:paddingBottom="16dp"
+            android:paddingBottom="96dp"
             android:visibility="gone">
 
             <LinearLayout
@@ -281,39 +279,92 @@
                 android:orientation="vertical"
                 android:padding="16dp">
 
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Riwayat Pemindaian"
-                    android:textSize="20sp"
-                    android:textStyle="bold"
-                    android:textColor="@color/text_primary" />
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="2dp"
-                    android:layout_marginBottom="16dp"
-                    android:text="Daftar riwayat pemeriksaan keamanan jaringan WiFi"
-                    android:textSize="13sp"
-                    android:textColor="@color/text_secondary" />
-
-                <LinearLayout
-                    android:id="@+id/containerHistoryList"
+                <RelativeLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:orientation="vertical" />
+                    android:layout_marginBottom="16dp">
 
-                <TextView
+                    <LinearLayout
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:layout_alignParentStart="true"
+                        android:layout_centerVertical="true"
+                        android:layout_toStartOf="@id/buttonClearAllHistory"
+                        android:layout_marginEnd="8dp">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Riwayat Pemindaian"
+                            android:textSize="20sp"
+                            android:textStyle="bold"
+                            android:textColor="@color/text_primary" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="2dp"
+                            android:text="Daftar riwayat pemeriksaan keamanan jaringan WiFi"
+                            android:textSize="13sp"
+                            android:textColor="@color/text_secondary" />
+                    </LinearLayout>
+
+                    <TextView
+                        android:id="@+id/buttonClearAllHistory"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_alignParentEnd="true"
+                        android:layout_centerVertical="true"
+                        android:background="?attr/selectableItemBackground"
+                        android:padding="8dp"
+                        android:text="Hapus semua"
+                        android:textSize="13sp"
+                        android:textStyle="bold"
+                        android:textColor="@color/text_danger"
+                        android:visibility="gone" />
+                </RelativeLayout>
+
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/recyclerHistory"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:nestedScrollingEnabled="false" />
+
+                <LinearLayout
                     android:id="@+id/textHistoryEmpty"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="32dp"
+                    android:layout_marginTop="48dp"
+                    android:orientation="vertical"
                     android:gravity="center"
-                    android:text="Belum ada riwayat pemindaian."
-                    android:textSize="14sp"
-                    android:textColor="@color/text_secondary"
-                    android:visibility="gone" />
+                    android:visibility="gone">
+
+                    <ImageView
+                        android:layout_width="48dp"
+                        android:layout_height="48dp"
+                        android:src="@drawable/ic_nav_history"
+                        android:contentDescription="@null"
+                        app:tint="@color/text_secondary" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="12dp"
+                        android:text="Belum ada riwayat"
+                        android:textSize="15sp"
+                        android:textStyle="bold"
+                        android:textColor="@color/text_primary" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:text="Pemindaian berikutnya akan muncul di sini."
+                        android:textSize="13sp"
+                        android:textColor="@color/text_secondary"
+                        android:gravity="center" />
+                </LinearLayout>
 
             </LinearLayout>
         </androidx.core.widget.NestedScrollView>
@@ -323,7 +374,7 @@
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:clipToPadding="false"
-            android:paddingBottom="16dp"
+            android:paddingBottom="96dp"
             android:visibility="gone">
 
             <LinearLayout
@@ -349,25 +400,124 @@
                     android:textSize="13sp"
                     android:textColor="@color/text_secondary" />
 
-                <LinearLayout
+                <com.google.android.material.card.MaterialCardView
+                    android:id="@+id/cardSettingsDarkMode"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:gravity="center_vertical"
-                    android:background="@drawable/bg_signal_card"
-                    android:padding="16dp"
-                    android:layout_marginBottom="12dp">
+                    android:layout_marginBottom="12dp"
+                    app:cardCornerRadius="16dp"
+                    app:cardElevation="0dp"
+                    app:strokeWidth="1dp"
+                    app:strokeColor="@color/surface_card_border"
+                    app:cardBackgroundColor="@color/surface_card">
 
                     <LinearLayout
-                        android:layout_width="0dp"
+                        android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:orientation="vertical">
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical"
+                        android:padding="16dp">
+
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:orientation="vertical">
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Mode Malam (Dark Theme)"
+                                android:textSize="15sp"
+                                android:textStyle="bold"
+                                android:textColor="@color/text_primary" />
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="2dp"
+                                android:text="Ubah tampilan aplikasi menjadi gelap"
+                                android:textSize="12sp"
+                                android:textColor="@color/text_secondary" />
+                        </LinearLayout>
+
+                        <androidx.appcompat.widget.SwitchCompat
+                            android:id="@+id/switchSettingsDarkMode"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content" />
+                    </LinearLayout>
+                </com.google.android.material.card.MaterialCardView>
+
+                <com.google.android.material.card.MaterialCardView
+                    android:id="@+id/cardSettingsNotifications"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="12dp"
+                    app:cardCornerRadius="16dp"
+                    app:cardElevation="0dp"
+                    app:strokeWidth="1dp"
+                    app:strokeColor="@color/surface_card_border"
+                    app:cardBackgroundColor="@color/surface_card">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical"
+                        android:padding="16dp">
+
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:orientation="vertical">
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Peringatan Bahaya"
+                                android:textSize="15sp"
+                                android:textStyle="bold"
+                                android:textColor="@color/text_primary" />
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="2dp"
+                                android:text="Tampilkan notifikasi jika terhubung ke WiFi mencurigakan"
+                                android:textSize="12sp"
+                                android:textColor="@color/text_secondary" />
+                        </LinearLayout>
+
+                        <androidx.appcompat.widget.SwitchCompat
+                            android:id="@+id/switchSettingsNotifications"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:checked="true" />
+                    </LinearLayout>
+                </com.google.android.material.card.MaterialCardView>
+
+                <com.google.android.material.card.MaterialCardView
+                    android:id="@+id/cardSettingsAbout"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="12dp"
+                    app:cardCornerRadius="16dp"
+                    app:cardElevation="0dp"
+                    app:strokeWidth="1dp"
+                    app:strokeColor="@color/surface_card_border"
+                    app:cardBackgroundColor="@color/surface_card">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:padding="16dp">
 
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="Mode Malam (Dark Theme)"
+                            android:text="Tentang Susnet"
                             android:textSize="15sp"
                             android:textStyle="bold"
                             android:textColor="@color/text_primary" />
@@ -375,112 +525,164 @@
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:layout_marginTop="2dp"
-                            android:text="Ubah tampilan aplikasi menjadi gelap"
+                            android:layout_marginTop="4dp"
+                            android:text="Susnet v1.0.0 — Sistem Pemantau &amp; Pendeteksi Ancaman WiFi berbasis Fuzzy Engine"
                             android:textSize="12sp"
+                            android:lineSpacingExtra="2dp"
                             android:textColor="@color/text_secondary" />
                     </LinearLayout>
-
-                    <androidx.appcompat.widget.SwitchCompat
-                        android:id="@+id/switchSettingsDarkMode"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content" />
-                </LinearLayout>
-
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:gravity="center_vertical"
-                    android:background="@drawable/bg_signal_card"
-                    android:padding="16dp"
-                    android:layout_marginBottom="12dp">
-
-                    <LinearLayout
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:orientation="vertical">
-
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="Peringatan Bahaya"
-                            android:textSize="15sp"
-                            android:textStyle="bold"
-                            android:textColor="@color/text_primary" />
-
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="2dp"
-                            android:text="Tampilkan notifikasi jika terhubung ke WiFi mencurigakan"
-                            android:textSize="12sp"
-                            android:textColor="@color/text_secondary" />
-                    </LinearLayout>
-
-                    <androidx.appcompat.widget.SwitchCompat
-                        android:id="@+id/switchSettingsNotifications"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:checked="true" />
-                </LinearLayout>
-
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="vertical"
-                    android:background="@drawable/bg_signal_card"
-                    android:padding="16dp"
-                    android:layout_marginBottom="12dp">
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="Tentang Susnet"
-                        android:textSize="15sp"
-                        android:textStyle="bold"
-                        android:textColor="@color/text_primary" />
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="4dp"
-                        android:text="Susnet v1.0.0 — Sistem Pemantau &amp; Pendeteksi Ancaman WiFi berbasis Fuzzy Engine"
-                        android:textSize="12sp"
-                        android:lineSpacingExtra="2dp"
-                        android:textColor="@color/text_secondary" />
-                </LinearLayout>
+                </com.google.android.material.card.MaterialCardView>
 
             </LinearLayout>
         </androidx.core.widget.NestedScrollView>
 
     </FrameLayout>
 
-    <LinearLayout
+    <com.google.android.material.card.MaterialCardView
         android:id="@+id/layoutBottomNavContainer"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:background="@color/aman_nav_bg">
+        android:layout_height="68dp"
+        android:layout_gravity="bottom"
+        android:layout_marginStart="16dp"
+        android:layout_marginEnd="16dp"
+        android:layout_marginBottom="16dp"
+        app:cardCornerRadius="28dp"
+        app:cardElevation="6dp"
+        app:strokeWidth="1dp"
+        app:strokeColor="@color/surface_card_border"
+        app:cardBackgroundColor="@color/surface_card"
+        android:clipToPadding="false"
+        android:clipChildren="true">
 
-        <View
-            android:id="@+id/borderTopBottomNav"
+        <LinearLayout
             android:layout_width="match_parent"
-            android:layout_height="1dp"
-            android:background="@color/aman_nav_border" />
+            android:layout_height="match_parent"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:baselineAligned="false">
 
-        <com.google.android.material.bottomnavigation.BottomNavigationView
-            android:id="@+id/bottomNavigation"
-            android:layout_width="match_parent"
-            android:layout_height="68dp"
-            android:background="@android:color/transparent"
-            app:elevation="0dp"
-            app:itemIconSize="22dp"
-            app:itemTextAppearanceActive="@style/BottomNavTextAppearance.Active"
-            app:itemTextAppearanceInactive="@style/BottomNavTextAppearance.Inactive"
-            app:labelVisibilityMode="labeled"
-            app:menu="@menu/bottom_nav_menu" />
-    </LinearLayout>
+            <!-- Item 1: Beranda -->
+            <LinearLayout
+                android:id="@+id/navItemHome"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:orientation="vertical"
+                android:gravity="center"
+                android:clickable="true"
+                android:focusable="true">
 
-</LinearLayout>
+                <FrameLayout
+                    android:id="@+id/pillHome"
+                    android:layout_width="56dp"
+                    android:layout_height="32dp"
+                    android:background="@drawable/bg_nav_pill"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:foreground="@drawable/bg_nav_pill_ripple">
+
+                    <ImageView
+                        android:id="@+id/iconHome"
+                        android:layout_width="24dp"
+                        android:layout_height="24dp"
+                        android:layout_gravity="center"
+                        android:src="@drawable/ic_nav_home"
+                        android:contentDescription="Beranda"
+                        app:tint="@color/text_primary" />
+                </FrameLayout>
+
+                <TextView
+                    android:id="@+id/textHome"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="3dp"
+                    android:text="Beranda"
+                    android:textSize="11sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/text_primary" />
+            </LinearLayout>
+
+            <!-- Item 2: Riwayat -->
+            <LinearLayout
+                android:id="@+id/navItemHistory"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:orientation="vertical"
+                android:gravity="center"
+                android:clickable="true"
+                android:focusable="true">
+
+                <FrameLayout
+                    android:id="@+id/pillHistory"
+                    android:layout_width="56dp"
+                    android:layout_height="32dp"
+                    android:background="@drawable/bg_nav_pill"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:foreground="@drawable/bg_nav_pill_ripple">
+
+                    <ImageView
+                        android:id="@+id/iconHistory"
+                        android:layout_width="24dp"
+                        android:layout_height="24dp"
+                        android:layout_gravity="center"
+                        android:src="@drawable/ic_nav_history"
+                        android:contentDescription="Riwayat"
+                        app:tint="@color/text_secondary" />
+                </FrameLayout>
+
+                <TextView
+                    android:id="@+id/textHistory"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="3dp"
+                    android:text="Riwayat"
+                    android:textSize="11sp"
+                    android:textColor="@color/text_secondary" />
+            </LinearLayout>
+
+            <!-- Item 3: Pengaturan -->
+            <LinearLayout
+                android:id="@+id/navItemSettings"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:orientation="vertical"
+                android:gravity="center"
+                android:clickable="true"
+                android:focusable="true">
+
+                <FrameLayout
+                    android:id="@+id/pillSettings"
+                    android:layout_width="56dp"
+                    android:layout_height="32dp"
+                    android:background="@drawable/bg_nav_pill"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:foreground="@drawable/bg_nav_pill_ripple">
+
+                    <ImageView
+                        android:id="@+id/iconSettings"
+                        android:layout_width="24dp"
+                        android:layout_height="24dp"
+                        android:layout_gravity="center"
+                        android:src="@drawable/ic_nav_settings"
+                        android:contentDescription="Pengaturan"
+                        app:tint="@color/text_secondary" />
+                </FrameLayout>
+
+                <TextView
+                    android:id="@+id/textSettings"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="3dp"
+                    android:text="Pengaturan"
+                    android:textSize="11sp"
+                    android:textColor="@color/text_secondary" />
+            </LinearLayout>
+
+        </LinearLayout>
+    </com.google.android.material.card.MaterialCardView>
+
+</FrameLayout>

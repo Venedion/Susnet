@@ -11,6 +11,8 @@ data class StatusPalette(
     @ColorInt val borderNormal: Int,
     @ColorInt val borderAbnormal: Int,
     @ColorInt val accent: Int,
+    @ColorInt val onAccent: Int,
+    @ColorInt val accentText: Int,
     @ColorInt val textAccent: Int,
     @ColorInt val chipBg: Int,
     @ColorInt val tile: Int,
@@ -36,14 +38,20 @@ data class StatusPalette(
             val gaugeAmber = ContextCompat.getColor(context, R.color.gauge_zone_amber)
             val gaugeRed = ContextCompat.getColor(context, R.color.gauge_zone_red)
 
+            val amanBg = ContextCompat.getColor(context, R.color.aman_bg)
+            val waspadaBg = ContextCompat.getColor(context, R.color.waspada_bg)
+            val bahayaBg = ContextCompat.getColor(context, R.color.bahaya_bg)
+
             return when (level) {
                 StatusLevel.AMAN -> StatusPalette(
-                    bg = ContextCompat.getColor(context, R.color.aman_bg),
-                    surface = ContextCompat.getColor(context, R.color.aman_surface),
+                    bg = amanBg,
+                    surface = amanBg,
                     border = ContextCompat.getColor(context, R.color.aman_border),
                     borderNormal = ContextCompat.getColor(context, R.color.aman_border_normal),
                     borderAbnormal = ContextCompat.getColor(context, R.color.aman_border),
                     accent = ContextCompat.getColor(context, R.color.aman_accent),
+                    onAccent = ContextCompat.getColor(context, R.color.aman_button_text),
+                    accentText = ContextCompat.getColor(context, R.color.aman_text_accent),
                     textAccent = ContextCompat.getColor(context, R.color.aman_text_accent),
                     chipBg = ContextCompat.getColor(context, R.color.aman_chip_bg),
                     tile = ContextCompat.getColor(context, R.color.aman_tile),
@@ -52,7 +60,7 @@ data class StatusPalette(
                     secondary = ContextCompat.getColor(context, R.color.aman_secondary),
                     navBg = ContextCompat.getColor(context, R.color.aman_nav_bg),
                     buttonBg = ContextCompat.getColor(context, R.color.aman_accent),
-                    buttonText = ContextCompat.getColor(context, R.color.aman_surface),
+                    buttonText = ContextCompat.getColor(context, R.color.aman_button_text),
                     normalChipBg = normalChipBg,
                     normalChipText = normalChipText,
                     normalTileIcon = normalTileIcon,
@@ -61,12 +69,14 @@ data class StatusPalette(
                     gaugeRed = gaugeRed
                 )
                 StatusLevel.WASPADA -> StatusPalette(
-                    bg = ContextCompat.getColor(context, R.color.waspada_bg),
-                    surface = ContextCompat.getColor(context, R.color.waspada_surface),
+                    bg = waspadaBg,
+                    surface = waspadaBg,
                     border = ContextCompat.getColor(context, R.color.waspada_border),
                     borderNormal = ContextCompat.getColor(context, R.color.waspada_border_normal),
                     borderAbnormal = ContextCompat.getColor(context, R.color.waspada_border_abnormal),
                     accent = ContextCompat.getColor(context, R.color.waspada_accent),
+                    onAccent = ContextCompat.getColor(context, R.color.waspada_button_text),
+                    accentText = ContextCompat.getColor(context, R.color.waspada_text_accent),
                     textAccent = ContextCompat.getColor(context, R.color.waspada_text_accent),
                     chipBg = ContextCompat.getColor(context, R.color.waspada_chip_bg),
                     tile = ContextCompat.getColor(context, R.color.waspada_tile),
@@ -84,12 +94,14 @@ data class StatusPalette(
                     gaugeRed = gaugeRed
                 )
                 StatusLevel.BAHAYA -> StatusPalette(
-                    bg = ContextCompat.getColor(context, R.color.bahaya_bg),
-                    surface = ContextCompat.getColor(context, R.color.bahaya_surface),
+                    bg = bahayaBg,
+                    surface = bahayaBg,
                     border = ContextCompat.getColor(context, R.color.bahaya_border),
                     borderNormal = ContextCompat.getColor(context, R.color.bahaya_border_normal),
                     borderAbnormal = ContextCompat.getColor(context, R.color.bahaya_border_abnormal),
                     accent = ContextCompat.getColor(context, R.color.bahaya_accent),
+                    onAccent = ContextCompat.getColor(context, R.color.bahaya_button_text),
+                    accentText = ContextCompat.getColor(context, R.color.bahaya_text_accent),
                     textAccent = ContextCompat.getColor(context, R.color.bahaya_text_accent),
                     chipBg = ContextCompat.getColor(context, R.color.bahaya_chip_bg),
                     tile = ContextCompat.getColor(context, R.color.bahaya_tile),

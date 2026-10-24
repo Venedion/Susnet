@@ -11,6 +11,7 @@ import android.net.wifi.WifiManager
 import android.os.Bundle
 import android.util.Log
 import android.view.View
+import android.view.ViewGroup
 import android.view.animation.LinearInterpolator
 import android.widget.Button
 import android.widget.ImageButton
@@ -26,8 +27,12 @@ import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
+import android.graphics.Canvas
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
+import androidx.recyclerview.widget.ItemTouchHelper
+import com.google.android.material.snackbar.Snackbar
 import androidx.lifecycle.lifecycleScope
-import com.google.android.material.bottomnavigation.BottomNavigationView
 import com.example.susnet.data.BaselineStore
 import com.example.susnet.data.SusnetDatabase
 import com.example.susnet.detection.EvilTwinDetector
@@ -75,7 +80,16 @@ class MainActivity : AppCompatActivity() {
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main)) { v, insets ->
             val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, 0)
-            findViewById<View>(R.id.layoutBottomNavContainer)?.setPadding(0, 0, 0, systemBars.bottom)
+            
+            val navContainer = findViewById<View>(R.id.layoutBottomNavContainer)
+            navContainer?.let { nav ->
+                val params = nav.layoutParams as? ViewGroup.MarginLayoutParams
+                if (params != null) {
+                    val baseMarginBottom = (16 * resources.displayMetrics.density).toInt()
+                    params.bottomMargin = baseMarginBottom + systemBars.bottom
+                    nav.layoutParams = params
+                }
+            }
             insets
         }
 
@@ -83,6 +97,7 @@ class MainActivity : AppCompatActivity() {
         setupAnimations()
         setupNightMode()
         setupBottomNavigation()
+        setupHistoryRecyclerView()
 
         if (hasLocationPermission()) {
             runEvaluation()
@@ -99,91 +114,240 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private var currentSelectedTab: Int = 0
+
     private fun setupBottomNavigation() {
-        val bottomNav = findViewById<BottomNavigationView>(R.id.bottomNavigation) ?: return
         val scrollContent = findViewById<View>(R.id.scrollContent)
         val scrollHistory = findViewById<View>(R.id.scrollHistory)
         val scrollSettings = findViewById<View>(R.id.scrollSettings)
 
-        bottomNav.selectedItemId = R.id.navigation_home
+        val navItemHome = findViewById<View>(R.id.navItemHome)
+        val navItemHistory = findViewById<View>(R.id.navItemHistory)
+        val navItemSettings = findViewById<View>(R.id.navItemSettings)
 
-        bottomNav.setOnItemSelectedListener { item ->
-            when (item.itemId) {
-                R.id.navigation_home -> {
-                    scrollContent?.visibility = View.VISIBLE
-                    scrollHistory?.visibility = View.GONE
-                    scrollSettings?.visibility = View.GONE
-                    true
-                }
-                R.id.navigation_history -> {
-                    scrollContent?.visibility = View.GONE
-                    scrollHistory?.visibility = View.VISIBLE
-                    scrollSettings?.visibility = View.GONE
-                    loadHistoryData()
-                    true
-                }
-                R.id.navigation_settings -> {
-                    scrollContent?.visibility = View.GONE
-                    scrollHistory?.visibility = View.GONE
-                    scrollSettings?.visibility = View.VISIBLE
-                    setupSettingsTab()
-                    true
-                }
-                else -> false
+        val pillHome = findViewById<View>(R.id.pillHome)
+        val pillHistory = findViewById<View>(R.id.pillHistory)
+        val pillSettings = findViewById<View>(R.id.pillSettings)
+
+        fun selectTab(tabIndex: Int) {
+            currentSelectedTab = tabIndex
+            val statusLevel = StatusLevel.fromScore(latestResult?.threatLevel ?: 0)
+            val palette = StatusPalette.from(statusLevel, this)
+
+            scrollContent?.visibility = if (tabIndex == 0) View.VISIBLE else View.GONE
+            scrollHistory?.visibility = if (tabIndex == 1) View.VISIBLE else View.GONE
+            scrollSettings?.visibility = if (tabIndex == 2) View.VISIBLE else View.GONE
+
+            if (tabIndex == 1) {
+                loadHistoryData()
+            } else if (tabIndex == 2) {
+                setupSettingsTab()
+            }
+
+            updateNavTabAppearance(tabIndex, palette)
+        }
+
+        navItemHome?.setOnClickListener { selectTab(0) }
+        pillHome?.setOnClickListener { selectTab(0) }
+
+        navItemHistory?.setOnClickListener { selectTab(1) }
+        pillHistory?.setOnClickListener { selectTab(1) }
+
+        navItemSettings?.setOnClickListener { selectTab(2) }
+        pillSettings?.setOnClickListener { selectTab(2) }
+
+        selectTab(0)
+    }
+
+    private fun updateNavTabAppearance(selectedIndex: Int, palette: StatusPalette) {
+        val pills = listOf(
+            findViewById<View>(R.id.pillHome),
+            findViewById<View>(R.id.pillHistory),
+            findViewById<View>(R.id.pillSettings)
+        )
+
+        val icons = listOf(
+            findViewById<ImageView>(R.id.iconHome),
+            findViewById<ImageView>(R.id.iconHistory),
+            findViewById<ImageView>(R.id.iconSettings)
+        )
+
+        val textViews = listOf(
+            findViewById<TextView>(R.id.textHome),
+            findViewById<TextView>(R.id.textHistory),
+            findViewById<TextView>(R.id.textSettings)
+        )
+
+        for (i in pills.indices) {
+            val isSelected = (i == selectedIndex)
+            val pill = pills[i]
+            val icon = icons[i]
+            val tv = textViews[i]
+
+            val pillDrawable = pill?.background?.mutate() as? GradientDrawable
+            if (isSelected) {
+                pillDrawable?.setColor(palette.chipBg)
+                icon?.setColorFilter(palette.textAccent)
+                tv?.setTextColor(palette.textAccent)
+                tv?.setTypeface(null, android.graphics.Typeface.BOLD)
+
+                pill?.animate()?.scaleX(1.05f)?.scaleY(1.05f)?.setDuration(180)?.start()
+            } else {
+                pillDrawable?.setColor(android.graphics.Color.TRANSPARENT)
+                icon?.setColorFilter(palette.secondary)
+                tv?.setTextColor(palette.secondary)
+                tv?.setTypeface(null, android.graphics.Typeface.NORMAL)
+
+                pill?.animate()?.scaleX(1.0f)?.scaleY(1.0f)?.setDuration(180)?.start()
             }
         }
     }
 
-    private fun loadHistoryData() {
-        val container = findViewById<LinearLayout>(R.id.containerHistoryList) ?: return
-        val emptyText = findViewById<TextView>(R.id.textHistoryEmpty) ?: return
+    private val historyAdapter = HistoryAdapter()
 
+    private fun setupHistoryRecyclerView() {
+        val recyclerView = findViewById<RecyclerView>(R.id.recyclerHistory) ?: return
+        recyclerView.layoutManager = LinearLayoutManager(this)
+        recyclerView.adapter = historyAdapter
+
+        val clearAllBtn = findViewById<TextView>(R.id.buttonClearAllHistory)
+        clearAllBtn?.setOnClickListener {
+            com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
+                .setTitle("Hapus semua riwayat?")
+                .setMessage("Riwayat pemindaian akan dihapus. Data jaringan yang sudah dikenali tidak ikut terhapus.")
+                .setNegativeButton("Batal", null)
+                .setPositiveButton("Hapus") { _, _ ->
+                    historyAdapter.submitList(emptyList())
+                    updateHistoryEmptyState(emptyList<com.example.susnet.data.HistoryItem>())
+                    lifecycleScope.launch {
+                        try {
+                            val db = SusnetDatabase.getInstance(applicationContext)
+                            db.detectionEventDao().deleteAll()
+                        } catch (e: Exception) {
+                            Log.e("MainActivity", "Failed to delete all history", e)
+                        }
+                    }
+                }
+                .show()
+        }
+
+        val itemTouchHelperCallback = object : ItemTouchHelper.SimpleCallback(0, ItemTouchHelper.LEFT or ItemTouchHelper.RIGHT) {
+            override fun onMove(
+                recyclerView: RecyclerView,
+                viewHolder: RecyclerView.ViewHolder,
+                target: RecyclerView.ViewHolder
+            ): Boolean = false
+
+            override fun onSwiped(viewHolder: RecyclerView.ViewHolder, direction: Int) {
+                val position = viewHolder.adapterPosition
+                val item = historyAdapter.currentList.getOrNull(position) ?: return
+
+                val currentList = historyAdapter.currentList.toMutableList()
+                currentList.removeAt(position)
+                historyAdapter.submitList(currentList)
+                updateHistoryEmptyState(currentList)
+
+                lifecycleScope.launch {
+                    try {
+                        val db = SusnetDatabase.getInstance(applicationContext)
+                        db.detectionEventDao().deleteById(item.event.id)
+                    } catch (e: Exception) {
+                        Log.e("MainActivity", "Failed to delete history item", e)
+                    }
+                }
+
+                Snackbar.make(recyclerView, "Riwayat dihapus", Snackbar.LENGTH_LONG)
+                    .setAction("Urungkan") {
+                        currentList.add(position, item)
+                        historyAdapter.submitList(currentList.toList())
+                        updateHistoryEmptyState(currentList)
+
+                        lifecycleScope.launch {
+                            try {
+                                val db = SusnetDatabase.getInstance(applicationContext)
+                                db.detectionEventDao().insert(item.event)
+                            } catch (e: Exception) {
+                                Log.e("MainActivity", "Failed to undo delete history item", e)
+                            }
+                        }
+                    }
+                    .show()
+            }
+
+            override fun onChildDraw(
+                c: Canvas,
+                recyclerView: RecyclerView,
+                viewHolder: RecyclerView.ViewHolder,
+                dX: Float,
+                dY: Float,
+                actionState: Int,
+                isCurrentlyActive: Boolean
+            ) {
+                val itemView = viewHolder.itemView
+                val density = resources.displayMetrics.density
+                val background = GradientDrawable().apply {
+                    cornerRadius = 16f * density
+                    setColor(ContextCompat.getColor(this@MainActivity, R.color.text_danger))
+                }
+                val icon = ContextCompat.getDrawable(this@MainActivity, R.drawable.ic_delete)
+
+                if (dX > 0) { // Swiping right
+                    background.setBounds(itemView.left, itemView.top, itemView.left + dX.toInt(), itemView.bottom)
+                    background.draw(c)
+                    icon?.let {
+                        val iconMargin = (16 * density).toInt()
+                        val iconTop = itemView.top + (itemView.height - it.intrinsicHeight) / 2
+                        val iconLeft = itemView.left + iconMargin
+                        val iconRight = iconLeft + it.intrinsicWidth
+                        val iconBottom = iconTop + it.intrinsicHeight
+                        it.setBounds(iconLeft, iconTop, iconRight, iconBottom)
+                        it.draw(c)
+                    }
+                } else if (dX < 0) { // Swiping left
+                    background.setBounds(itemView.right + dX.toInt(), itemView.top, itemView.right, itemView.bottom)
+                    background.draw(c)
+                    icon?.let {
+                        val iconMargin = (16 * density).toInt()
+                        val iconRight = itemView.right - iconMargin
+                        val iconLeft = iconRight - it.intrinsicWidth
+                        val iconTop = itemView.top + (itemView.height - it.intrinsicHeight) / 2
+                        val iconBottom = iconTop + it.intrinsicHeight
+                        it.setBounds(iconLeft, iconTop, iconRight, iconBottom)
+                        it.draw(c)
+                    }
+                }
+
+                super.onChildDraw(c, recyclerView, viewHolder, dX, dY, actionState, isCurrentlyActive)
+            }
+        }
+
+        ItemTouchHelper(itemTouchHelperCallback).attachToRecyclerView(recyclerView)
+    }
+
+    private fun updateHistoryEmptyState(list: List<*>) {
+        val emptyView = findViewById<View>(R.id.textHistoryEmpty)
+        val clearAllBtn = findViewById<TextView>(R.id.buttonClearAllHistory)
+        if (list.isEmpty()) {
+            emptyView?.visibility = View.VISIBLE
+            clearAllBtn?.visibility = View.GONE
+        } else {
+            emptyView?.visibility = View.GONE
+            clearAllBtn?.visibility = View.VISIBLE
+        }
+    }
+
+    private fun loadHistoryData() {
         lifecycleScope.launch {
             try {
                 val db = SusnetDatabase.getInstance(applicationContext)
-                val events = db.detectionEventDao().getRecentEvents(20)
+                val events = db.detectionEventDao().getRecentHistoryItems(100)
 
-                container.removeAllViews()
+                val statusLevelCurrent = StatusLevel.fromScore(latestResult?.threatLevel ?: 0)
+                val palette = StatusPalette.from(statusLevelCurrent, this@MainActivity)
 
-                if (events.isEmpty()) {
-                    emptyText.visibility = View.VISIBLE
-                } else {
-                    emptyText.visibility = View.GONE
-                    val dateFormat = SimpleDateFormat("dd MMM, HH:mm", Locale.getDefault())
-
-                    for (event in events) {
-                        val itemView = layoutInflater.inflate(R.layout.item_history_card, container, false)
-
-                        val timeStr = dateFormat.format(Date(event.timestamp))
-                        itemView.findViewById<TextView>(R.id.textHistoryTime)?.text = timeStr
-
-                        val scoreBadge = itemView.findViewById<TextView>(R.id.textHistoryScoreBadge)
-                        val statusLevel = StatusLevel.fromScore(event.threatLevel)
-                        val statusLabel: String
-                        val statusColorRes: Int
-
-                        when (statusLevel) {
-                            StatusLevel.AMAN -> {
-                                statusLabel = "Aman"
-                                statusColorRes = R.color.text_success
-                            }
-                            StatusLevel.WASPADA -> {
-                                statusLabel = "Waspada"
-                                statusColorRes = R.color.text_warning
-                            }
-                            StatusLevel.BAHAYA -> {
-                                statusLabel = "Bahaya"
-                                statusColorRes = R.color.text_danger
-                            }
-                        }
-
-                        val color = ContextCompat.getColor(this@MainActivity, statusColorRes)
-                        scoreBadge?.text = "Skor ${event.threatLevel} — $statusLabel"
-                        scoreBadge?.setTextColor(color)
-
-                        container.addView(itemView)
-                    }
-                }
+                historyAdapter.setPalette(palette)
+                historyAdapter.submitList(events)
+                updateHistoryEmptyState(events)
             } catch (e: Exception) {
                 Log.e("MainActivity", "Failed to load history", e)
             }
@@ -206,6 +370,23 @@ class MainActivity : AppCompatActivity() {
             AppCompatDelegate.setDefaultNightMode(
                 if (isChecked) AppCompatDelegate.MODE_NIGHT_YES else AppCompatDelegate.MODE_NIGHT_NO
             )
+        }
+
+        val statusLevel = StatusLevel.fromScore(latestResult?.threatLevel ?: 0)
+        val palette = StatusPalette.from(statusLevel, this)
+        updateSettingsCards(palette)
+    }
+
+    private fun updateSettingsCards(palette: StatusPalette) {
+        val cardDarkMode = findViewById<com.google.android.material.card.MaterialCardView>(R.id.cardSettingsDarkMode)
+        val cardNotifications = findViewById<com.google.android.material.card.MaterialCardView>(R.id.cardSettingsNotifications)
+        val cardAbout = findViewById<com.google.android.material.card.MaterialCardView>(R.id.cardSettingsAbout)
+
+        val density = resources.displayMetrics.density
+        for (card in listOf(cardDarkMode, cardNotifications, cardAbout)) {
+            card?.setCardBackgroundColor(palette.surface)
+            card?.strokeColor = palette.border
+            card?.strokeWidth = (1f * density).toInt()
         }
     }
 
@@ -307,26 +488,13 @@ class MainActivity : AppCompatActivity() {
         controller.isAppearanceLightStatusBars = !isDark
         controller.isAppearanceLightNavigationBars = !isDark
 
-        val navContainer = findViewById<View>(R.id.layoutBottomNavContainer)
-        val navBorder = findViewById<View>(R.id.borderTopBottomNav)
-        val bottomNav = findViewById<BottomNavigationView>(R.id.bottomNavigation)
+        val navContainer = findViewById<com.google.android.material.card.MaterialCardView>(R.id.layoutBottomNavContainer)
+        navContainer?.setCardBackgroundColor(palette.surface)
+        navContainer?.strokeColor = palette.border
+        navContainer?.strokeWidth = (1 * resources.displayMetrics.density).toInt()
 
-        navContainer?.setBackgroundColor(palette.navBg)
-        navBorder?.setBackgroundColor(palette.border)
-
-        val navColorStateList = ColorStateList(
-            arrayOf(
-                intArrayOf(android.R.attr.state_checked),
-                intArrayOf()
-            ),
-            intArrayOf(
-                palette.textAccent,
-                palette.secondary
-            )
-        )
-
-        bottomNav?.itemIconTintList = navColorStateList
-        bottomNav?.itemTextColor = navColorStateList
+        updateNavTabAppearance(currentSelectedTab, palette)
+        updateSettingsCards(palette)
 
         val statusLabel: String
         val bgDrawableRes: Int
@@ -534,12 +702,9 @@ class MainActivity : AppCompatActivity() {
         val statusText = cardRoot.findViewById<TextView>(R.id.textCardStatus)
         val statusIcon = cardRoot.findViewById<ImageView>(R.id.iconCardStatus)
 
-        val density = resources.displayMetrics.density
+        val materialCard = cardRoot as? com.google.android.material.card.MaterialCardView
 
-        val cardDrawable = GradientDrawable().apply {
-            cornerRadius = 16f * density
-            setColor(palette.surface)
-        }
+        val density = resources.displayMetrics.density
 
         val tileDrawable = GradientDrawable().apply {
             cornerRadius = 12f * density
@@ -550,7 +715,10 @@ class MainActivity : AppCompatActivity() {
         }
 
         if (score < 35) {
-            cardDrawable.setStroke((1f * density).toInt(), palette.borderNormal)
+            materialCard?.setCardBackgroundColor(palette.surface)
+            materialCard?.strokeColor = palette.borderNormal
+            materialCard?.strokeWidth = (1f * density).toInt()
+
             accentBar?.visibility = View.GONE
 
             tileDrawable.setColor(palette.tileNormal)
@@ -568,9 +736,10 @@ class MainActivity : AppCompatActivity() {
             statusIcon?.setImageResource(R.drawable.ic_status_normal)
             statusIcon?.setColorFilter(palette.normalChipText)
         } else {
-            cardDrawable.setStroke((2f * density).toInt(), palette.borderAbnormal)
             accentBar?.visibility = View.VISIBLE
             accentBar?.setBackgroundColor(palette.accent)
+            materialCard?.setCardBackgroundColor(palette.surface)
+            materialCard?.strokeColor = androidx.core.graphics.ColorUtils.setAlphaComponent(palette.accent, 140)
 
             tileDrawable.setColor(palette.chipBg)
             tileContainer?.background = tileDrawable
@@ -587,8 +756,6 @@ class MainActivity : AppCompatActivity() {
             statusIcon?.setImageResource(R.drawable.ic_status_changed)
             statusIcon?.setColorFilter(palette.textAccent)
         }
-
-        cardRoot.background = cardDrawable
     }
 
     private fun hasLocationPermission(): Boolean {

@@ -20,8 +20,8 @@
 
             <ImageButton
                 android:id="@+id/btnBack"
-                android:layout_width="48dp"
-                android:layout_height="48dp"
+                android:layout_width="44dp"
+                android:layout_height="44dp"
                 android:layout_alignParentStart="true"
                 android:layout_centerVertical="true"
                 android:background="?attr/selectableItemBackgroundBorderless"
@@ -34,7 +34,7 @@
                 android:layout_height="wrap_content"
                 android:layout_toEndOf="@id/btnBack"
                 android:layout_centerVertical="true"
-                android:layout_marginStart="8dp"
+                android:layout_marginStart="12dp"
                 android:orientation="vertical">
 
                 <TextView
@@ -50,7 +50,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="2dp"
-                    tools:text="Cafe_WiFi"
+                    tools:text="Cafe_WiFi · 14:30:12"
                     android:textSize="13sp"
                     android:textColor="@color/text_secondary" />
             </LinearLayout>
@@ -62,47 +62,108 @@
             android:layout_height="wrap_content"
             android:orientation="vertical"
             android:background="@drawable/bg_status_card_aman"
-            android:padding="20dp"
+            android:padding="16dp"
             android:layout_marginBottom="20dp">
 
-            <TextView
-                android:id="@+id/textDetailStatusLabel"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Aman"
-                android:textSize="22sp"
-                android:textStyle="bold"
-                android:textColor="@color/text_success" />
+            <RelativeLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content">
 
-            <TextView
-                android:id="@+id/textDetailScore"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="2dp"
-                tools:text="Skor 12 / 100"
-                android:textSize="14sp"
-                android:textStyle="bold"
-                android:textColor="@color/text_success" />
+                <LinearLayout
+                    android:id="@+id/layoutStatusBadgePill"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_alignParentStart="true"
+                    android:layout_centerVertical="true"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:background="@drawable/bg_status_badge_pill"
+                    android:paddingStart="12dp"
+                    android:paddingTop="6dp"
+                    android:paddingEnd="12dp"
+                    android:paddingBottom="6dp">
+
+                    <ImageView
+                        android:id="@+id/iconDetailStatus"
+                        android:layout_width="16dp"
+                        android:layout_height="16dp"
+                        android:src="@drawable/ic_status_normal"
+                        android:contentDescription="@null" />
+
+                    <TextView
+                        android:id="@+id/textDetailStatusLabel"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="6dp"
+                        android:text="Aman"
+                        android:textSize="14sp"
+                        android:textStyle="bold"
+                        android:textColor="@color/aman_text_accent" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_alignParentEnd="true"
+                    android:layout_centerVertical="true"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Skor "
+                        android:textSize="13sp"
+                        android:textStyle="bold"
+                        android:textColor="@color/text_primary" />
+
+                    <TextView
+                        android:id="@+id/textDetailScoreValue"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        tools:text="12"
+                        android:textSize="22sp"
+                        android:textStyle="bold"
+                        android:textColor="@color/aman_text_accent" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text=" / 100"
+                        android:textSize="13sp"
+                        android:textStyle="bold"
+                        android:textColor="@color/text_secondary" />
+                </LinearLayout>
+
+            </RelativeLayout>
+
+            <com.example.susnet.ScoreZoneBarView
+                android:id="@+id/scoreZoneBarView"
+                android:layout_width="match_parent"
+                android:layout_height="20dp"
+                android:layout_marginTop="12dp"
+                android:layout_marginBottom="12dp" />
 
             <TextView
                 android:id="@+id/textRecommendedAction"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
                 android:text="Tidak ada tindakan khusus yang perlu dilakukan. Jaringan ini terlihat aman digunakan."
                 android:textSize="13sp"
+                android:textStyle="bold"
                 android:lineSpacingExtra="2dp"
-                android:textColor="@color/text_success" />
+                android:textColor="@color/aman_text_accent" />
 
             <Button
                 android:id="@+id/btnDetailDisconnectWifi"
-                android:layout_width="wrap_content"
-                android:layout_height="40dp"
+                android:layout_width="match_parent"
+                android:layout_height="48dp"
                 android:layout_marginTop="12dp"
-                android:backgroundTint="@color/text_danger"
+                android:backgroundTint="@color/bahaya_button_bg"
                 android:text="Putuskan WiFi ini"
-                android:textColor="#FFFFFF"
-                android:textSize="13sp"
+                android:textColor="@color/bahaya_button_text"
+                android:textSize="14sp"
+                android:textStyle="bold"
                 android:textAllCaps="false"
                 android:visibility="gone" />
         </LinearLayout>
@@ -116,20 +177,30 @@
             android:textColor="@color/text_primary"
             android:layout_marginBottom="12dp" />
 
-        <include layout="@layout/item_explanation_card" android:id="@+id/explainBssid" />
-        <include layout="@layout/item_explanation_card" android:id="@+id/explainTls" />
-        <include layout="@layout/item_explanation_card" android:id="@+id/explainSignal" />
-        <include layout="@layout/item_explanation_card" android:id="@+id/explainLatency" />
-        <include layout="@layout/item_explanation_card" android:id="@+id/explainArp" />
+        <LinearLayout
+            android:id="@+id/containerExplanationCards"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <include layout="@layout/item_explanation_card" android:id="@+id/explainBssid" />
+            <include layout="@layout/item_explanation_card" android:id="@+id/explainTls" />
+            <include layout="@layout/item_explanation_card" android:id="@+id/explainSignal" />
+            <include layout="@layout/item_explanation_card" android:id="@+id/explainLatency" />
+            <include layout="@layout/item_explanation_card" android:id="@+id/explainArp" />
+
+        </LinearLayout>
 
         <LinearLayout
+            android:id="@+id/cardActionsContainer"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
             android:background="@drawable/bg_signal_card"
             android:padding="16dp"
             android:layout_marginTop="8dp"
-            android:layout_marginBottom="16dp">
+            android:layout_marginBottom="16dp"
+            android:visibility="gone">
 
             <TextView
                 android:layout_width="wrap_content"
@@ -144,12 +215,14 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
+                android:gravity="center_vertical"
                 android:layout_marginBottom="8dp">
 
                 <TextView
-                    android:layout_width="24dp"
-                    android:layout_height="24dp"
-                    android:background="@drawable/bg_network_info_pill"
+                    android:id="@+id/textActionNum1"
+                    android:layout_width="22dp"
+                    android:layout_height="22dp"
+                    android:background="@drawable/bg_number_circle"
                     android:gravity="center"
                     android:text="1"
                     android:textSize="12sp"
@@ -157,11 +230,12 @@
                     android:textColor="@color/text_primary" />
 
                 <TextView
+                    android:id="@+id/textAction1"
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
                     android:layout_marginStart="10dp"
-                    android:text="Putuskan sambungan dari jaringan ini jika terdeteksi Bahaya."
+                    tools:text="Langkah 1"
                     android:textSize="13sp"
                     android:textColor="@color/text_secondary" />
             </LinearLayout>
@@ -170,12 +244,14 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
+                android:gravity="center_vertical"
                 android:layout_marginBottom="8dp">
 
                 <TextView
-                    android:layout_width="24dp"
-                    android:layout_height="24dp"
-                    android:background="@drawable/bg_network_info_pill"
+                    android:id="@+id/textActionNum2"
+                    android:layout_width="22dp"
+                    android:layout_height="22dp"
+                    android:background="@drawable/bg_number_circle"
                     android:gravity="center"
                     android:text="2"
                     android:textSize="12sp"
@@ -183,11 +259,12 @@
                     android:textColor="@color/text_primary" />
 
                 <TextView
+                    android:id="@+id/textAction2"
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
                     android:layout_marginStart="10dp"
-                    android:text="Jangan memasukkan kata sandi, info perbankan, atau data sensitif."
+                    tools:text="Langkah 2"
                     android:textSize="13sp"
                     android:textColor="@color/text_secondary" />
             </LinearLayout>
@@ -195,12 +272,14 @@
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="horizontal">
+                android:orientation="horizontal"
+                android:gravity="center_vertical">
 
                 <TextView
-                    android:layout_width="24dp"
-                    android:layout_height="24dp"
-                    android:background="@drawable/bg_network_info_pill"
+                    android:id="@+id/textActionNum3"
+                    android:layout_width="22dp"
+                    android:layout_height="22dp"
+                    android:background="@drawable/bg_number_circle"
                     android:gravity="center"
                     android:text="3"
                     android:textSize="12sp"
@@ -208,11 +287,12 @@
                     android:textColor="@color/text_primary" />
 
                 <TextView
+                    android:id="@+id/textAction3"
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
                     android:layout_marginStart="10dp"
-                    android:text="Gunakan jaringan seluler atau VPN tepercaya jika memerlukan koneksi internet."
+                    tools:text="Langkah 3"
                     android:textSize="13sp"
                     android:textColor="@color/text_secondary" />
             </LinearLayout>

@@ -1,5 +1,6 @@
 package com.example.susnet.detection
 
+import com.example.susnet.StatusLevel
 import com.example.susnet.data.BaselineStore
 import com.example.susnet.data.DetectionEventDao
 import com.example.susnet.data.DetectionEventEntity
@@ -54,18 +55,37 @@ class ThreatEvaluator(
         )
 
         if (networkId != null) {
-            detectionEventDao.insertEvent(
-                DetectionEventEntity(
-                    networkId = networkId,
-                    timestamp = System.currentTimeMillis(),
-                    threatLevel = threatLevel,
-                    bssidChangeScore = bssidScore,
-                    tlsChangeScore = tlsResult.score,
-                    signalInstabilityScore = signalResult.signalInstabilityScore,
-                    latencyDeviationScore = latencyResult.latencyDeviationScore,
-                    configChangeScore = configScore
+            val lastEvent = detectionEventDao.getLastEventForNetwork(networkId)
+            val currentTime = System.currentTimeMillis()
+            val tenMinutes = 10 * 60 * 1000L
+
+            val shouldInsert = if (lastEvent == null) {
+                true
+            } else {
+                val lastLevel = StatusLevel.fromScore(lastEvent.threatLevel)
+                val currentLevel = StatusLevel.fromScore(threatLevel)
+                val levelChanged = lastLevel != currentLevel
+                val scoreChanged = kotlin.math.abs(lastEvent.threatLevel - threatLevel) >= 5
+                val timeElapsed = (currentTime - lastEvent.timestamp) > tenMinutes
+
+                levelChanged || scoreChanged || timeElapsed
+            }
+
+            if (shouldInsert) {
+                detectionEventDao.insertEvent(
+                    DetectionEventEntity(
+                        networkId = networkId,
+                        timestamp = currentTime,
+                        threatLevel = threatLevel,
+                        bssidChangeScore = bssidScore,
+                        tlsChangeScore = tlsResult.score,
+                        signalInstabilityScore = signalResult.signalInstabilityScore,
+                        latencyDeviationScore = latencyResult.latencyDeviationScore,
+                        configChangeScore = configScore
+                    )
                 )
-            )
+                detectionEventDao.trimHistory()
+            }
         }
 
         val notConnected = "Ponsel tidak terhubung ke WiFi, atau alamat WiFi tidak dapat dibaca."
