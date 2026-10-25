@@ -46,4 +46,30 @@ class FuzzyEngineTest {
             }
         }
     }
+
+    // Analisis sensitivitas kombinasi BSSID dan Konfigurasi (bukan target tetapi perilaku terverifikasi)
+    @Test
+    fun testSensitivityBssid40AndConfig() {
+        assertEquals(64, FuzzyEngine.computeThreatLevel(40, 0, 0, 0, 55))
+        assertEquals(62, FuzzyEngine.computeThreatLevel(40, 0, 0, 0, 65))
+        assertEquals(68, FuzzyEngine.computeThreatLevel(40, 0, 0, 0, 85))
+    }
+
+    @Test
+    fun testSensitivityBssid60AndConfig() {
+        assertEquals(64, FuzzyEngine.computeThreatLevel(60, 0, 0, 0, 55))
+        assertEquals(62, FuzzyEngine.computeThreatLevel(60, 0, 0, 0, 65))
+        assertEquals(68, FuzzyEngine.computeThreatLevel(60, 0, 0, 0, 85))
+    }
+
+    @Test
+    fun testSensitivityBssid20AndConfig() {
+        assertEquals(63, FuzzyEngine.computeThreatLevel(20, 0, 0, 0, 65))
+        assertEquals(81, FuzzyEngine.computeThreatLevel(20, 0, 0, 0, 85))
+    }
+
+    @Test
+    fun testSensitivityBssid0AndConfig() {
+        assertEquals(81, FuzzyEngine.computeThreatLevel(0, 0, 0, 0, 85))
+    }
 }

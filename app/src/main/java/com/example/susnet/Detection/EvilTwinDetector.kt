@@ -29,6 +29,13 @@ class EvilTwinDetector(
         baselineStore.registerSighting(ssid, currentBssid)
         val confidence = baselineStore.getConfidence(ssid, currentBssid)
 
+        val ap = baselineStore.getAccessPointDetails(ssid, currentBssid)
+        val seenCount = ap?.seenCount ?: 1
+        val firstSeen = ap?.firstSeen ?: System.currentTimeMillis()
+        val ageMs = System.currentTimeMillis() - firstSeen
+        val days = ageMs / (24 * 60 * 60 * 1000L)
+        val ageStr = if (days < 1) "kurang dari 1 hari" else "$days hari"
+
         val score = when {
             isBrandNewNetwork -> 0
             isKnownBssid -> when (confidence) {
@@ -44,8 +51,13 @@ class EvilTwinDetector(
                 "Ini pertama kali kamu tersambung ke \"$ssid\", jadi belum ada pembanding. " +
                         "Alamat perangkat WiFi (BSSID) $currentBssid dicatat sebagai acuan."
 
-            isKnownBssid ->
-                "BSSID $currentBssid sudah pernah terlihat pada \"$ssid\" (${confidenceLabel(confidence)})."
+            isKnownBssid -> {
+                if (confidence == Confidence.HIGH) {
+                    "BSSID $currentBssid sudah pernah terlihat pada \"$ssid\" (${confidenceLabel(confidence)})."
+                } else {
+                    "Alamat ini baru terlihat $seenCount kali dalam $ageStr. Dipercaya setelah dilihat minimal 5 kali dalam 3 hari."
+                }
+            }
 
             else ->
                 "BSSID $currentBssid belum pernah terlihat pada \"$ssid\". " +

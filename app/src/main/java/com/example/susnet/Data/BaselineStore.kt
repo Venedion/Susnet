@@ -20,11 +20,13 @@ class BaselineStore(context: Context) {
     suspend fun getConfidence(ssid: String, bssid: String): Confidence {
         val network = dao.findNetwork(ssid) ?: return Confidence.LOW
         val accessPoint = dao.findAccessPoint(network.id, bssid) ?: return Confidence.LOW
-        return when {
-            accessPoint.seenCount >= HIGH_THRESHOLD -> Confidence.HIGH
-            accessPoint.seenCount >= MEDIUM_THRESHOLD -> Confidence.MEDIUM
-            else -> Confidence.LOW
-        }
+        val now = System.currentTimeMillis()
+        return computeConfidence(accessPoint.seenCount, accessPoint.firstSeen, now)
+    }
+
+    suspend fun getAccessPointDetails(ssid: String, bssid: String): AccessPointEntity? {
+        val network = dao.findNetwork(ssid) ?: return null
+        return dao.findAccessPoint(network.id, bssid)
     }
 
     suspend fun registerSighting(ssid: String, bssid: String) {
@@ -43,19 +45,6 @@ class BaselineStore(context: Context) {
         }
     }
 
-    suspend fun forceHighConfidence(ssid: String, bssid: String) {
-        val now = System.currentTimeMillis()
-        val network = findOrCreateNetwork(ssid)
-        val existing = dao.findAccessPoint(network.id, bssid)
-        if (existing == null) {
-            dao.insertAccessPoint(
-                AccessPointEntity(networkId = network.id, bssid = bssid, firstSeen = now, lastSeen = now, seenCount = HIGH_THRESHOLD)
-            )
-        } else {
-            dao.updateAccessPoint(existing.copy(lastSeen = now, seenCount = HIGH_THRESHOLD))
-        }
-    }
-
     private suspend fun findOrCreateNetwork(ssid: String): NetworkEntity {
         val now = System.currentTimeMillis()
         return dao.findNetwork(ssid) ?: run {
@@ -65,8 +54,18 @@ class BaselineStore(context: Context) {
     }
 
     companion object {
-        private const val SESSION_GAP_MS = 30 * 60 * 1000L
-        private const val MEDIUM_THRESHOLD = 2
-        private const val HIGH_THRESHOLD = 5
+        const val SESSION_GAP_MS = 30 * 60 * 1000L
+        const val MEDIUM_THRESHOLD = 2
+        const val HIGH_THRESHOLD = 5
+        const val MIN_TRUST_AGE_MS = 3 * 24 * 60 * 60 * 1000L
+
+        fun computeConfidence(seenCount: Int, firstSeen: Long, now: Long = System.currentTimeMillis()): Confidence {
+            val age = now - firstSeen
+            return when {
+                seenCount >= HIGH_THRESHOLD && age >= MIN_TRUST_AGE_MS -> Confidence.HIGH
+                seenCount >= MEDIUM_THRESHOLD -> Confidence.MEDIUM
+                else -> Confidence.LOW
+            }
+        }
     }
 }

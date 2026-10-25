@@ -3,6 +3,8 @@ package com.example.susnet.detection
 import android.content.Context
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
+import com.example.susnet.data.BaselineStore
+import com.example.susnet.data.Confidence
 import com.example.susnet.data.NetworkConfigDao
 import com.example.susnet.data.NetworkConfigEntity
 import kotlinx.coroutines.Dispatchers
@@ -44,23 +46,33 @@ class NetworkConfigMonitor(
         val gatewayChanged = dominant != null && current.gatewayIp != dominant.gatewayIp
         val dnsChanged = dominant != null && current.dnsServers != dominant.dnsServers
 
-        val score = when {
-            dominant == null -> 0
-            match == null -> when {
-                gatewayChanged && dnsChanged -> 85
-                dnsChanged -> 65
-                else -> 55
-            }
-            match.id == dominant.id -> 0
-            else -> 25
+        val confidence = if (match != null) {
+            BaselineStore.computeConfidence(match.seenCount, match.firstSeen, now)
+        } else {
+            Confidence.LOW
         }
+
+        val isDominant = dominant != null && match?.id == dominant.id
+        val hasDominant = dominant != null
+
+        val score = computeConfigScore(
+            hasDominant = hasDominant,
+            isDominant = isDominant,
+            confidence = confidence,
+            gatewayChanged = gatewayChanged,
+            dnsChanged = dnsChanged
+        )
 
         val detail = when {
             dominant == null ->
                 "Ini pertama kali konfigurasi jaringan ini dicatat. Gateway ${current.gatewayIp}, " +
                         "DNS ${dnsText(current.dnsServers)} disimpan sebagai acuan."
 
-            match == null -> {
+            isDominant ->
+                "Gateway ${current.gatewayIp} dan DNS ${dnsText(current.dnsServers)} sama dengan " +
+                        "yang biasa dipakai jaringan ini (terlihat ${match.seenCount} kali)."
+
+            else -> {
                 val parts = mutableListOf<String>()
                 if (gatewayChanged) {
                     parts.add("gateway berubah dari ${dominant.gatewayIp} menjadi ${current.gatewayIp}")
@@ -71,23 +83,30 @@ class NetworkConfigMonitor(
                                 "menjadi ${dnsText(current.dnsServers)}"
                     )
                 }
-                "Pada jaringan ini ${parts.joinToString(" dan ")}. " +
-                        "Konfigurasi yang biasa sudah terlihat ${dominant.seenCount} kali, " +
-                        "sedangkan yang sekarang baru pertama kali."
+                val changeStr = if (parts.isNotEmpty()) {
+                    "Pada jaringan ini ${parts.joinToString(" dan ")}."
+                } else {
+                    "Konfigurasi jaringan ini berbeda dari yang biasa."
+                }
+
+                if (match != null && confidence != Confidence.HIGH) {
+                    val ageMs = now - match.firstSeen
+                    val days = ageMs / (24 * 60 * 60 * 1000L)
+                    val ageStr = if (days < 1) "kurang dari 1 hari" else "$days hari"
+                    "$changeStr Konfigurasi ini baru terlihat ${match.seenCount} kali dalam $ageStr. Dipercaya setelah dilihat minimal 5 kali dalam 3 hari."
+                } else if (match == null) {
+                    "$changeStr Konfigurasi yang biasa sudah terlihat ${dominant.seenCount} kali, sedangkan yang sekarang baru pertama kali."
+                } else {
+                    "$changeStr Gateway ${current.gatewayIp} dan DNS ${dnsText(current.dnsServers)} pernah terlihat ${match.seenCount} kali, tetapi bukan konfigurasi yang paling sering dipakai jaringan ini."
+                }
             }
-
-            match.id == dominant.id ->
-                "Gateway ${current.gatewayIp} dan DNS ${dnsText(current.dnsServers)} sama dengan " +
-                        "yang biasa dipakai jaringan ini (terlihat ${match.seenCount} kali)."
-
-            else ->
-                "Gateway ${current.gatewayIp} dan DNS ${dnsText(current.dnsServers)} pernah terlihat " +
-                        "${match.seenCount} kali, tetapi bukan konfigurasi yang paling sering dipakai " +
-                        "jaringan ini (${dominant.gatewayIp}, DNS ${dnsText(dominant.dnsServers)})."
         }
 
         if (match != null) {
-            dao.update(match.copy(lastSeen = now, seenCount = match.seenCount + 1))
+            val sessionGap = BaselineStore.SESSION_GAP_MS
+            val timeSinceLastSeen = now - match.lastSeen
+            val newSeenCount = if (timeSinceLastSeen >= sessionGap) match.seenCount + 1 else match.seenCount
+            dao.update(match.copy(lastSeen = now, seenCount = newSeenCount))
         } else {
             dao.insert(
                 NetworkConfigEntity(
@@ -125,5 +144,28 @@ class NetworkConfigMonitor(
             .joinToString(",")
 
         return Config(gateway, dns)
+    }
+
+    companion object {
+        fun computeConfigScore(
+            hasDominant: Boolean,
+            isDominant: Boolean,
+            confidence: Confidence,
+            gatewayChanged: Boolean,
+            dnsChanged: Boolean
+        ): Int {
+            if (!hasDominant) return 0
+            if (isDominant) return 0
+
+            return if (confidence == Confidence.HIGH) {
+                25
+            } else {
+                when {
+                    gatewayChanged && dnsChanged -> 85
+                    dnsChanged -> 65
+                    else -> 55
+                }
+            }
+        }
     }
 }

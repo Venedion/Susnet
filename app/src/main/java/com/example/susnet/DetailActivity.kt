@@ -192,6 +192,18 @@ class DetailActivity : AppCompatActivity() {
             }
         }
 
+        val textCombinedWarning = findViewById<TextView>(R.id.textCombinedWarning)
+        if (bssidScore >= 35 && configScore >= 35) {
+            textCombinedWarning?.visibility = View.VISIBLE
+            val boxDrawable = ContextCompat.getDrawable(this, R.drawable.bg_detected_box)?.mutate() as? GradientDrawable
+            boxDrawable?.setColor(palette.chipBg)
+            boxDrawable?.setStroke((1 * resources.displayMetrics.density).toInt(), palette.border)
+            textCombinedWarning?.background = boxDrawable
+            textCombinedWarning?.setTextColor(palette.textAccent)
+        } else {
+            textCombinedWarning?.visibility = View.GONE
+        }
+
         val signals = listOf(
             SignalInfo(
                 label = "Alamat WiFi",

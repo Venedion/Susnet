@@ -8,7 +8,7 @@ import androidx.room.Update
 @Dao
 interface NetworkConfigDao {
 
-    @Query("SELECT * FROM network_configs WHERE networkId = :networkId")
+    @Query("SELECT * FROM network_configs WHERE networkId = :networkId ORDER BY firstSeen ASC")
     suspend fun getForNetwork(networkId: Long): List<NetworkConfigEntity>
 
     @Insert
