@@ -160,12 +160,55 @@
                 android:layout_height="48dp"
                 android:layout_marginTop="12dp"
                 android:backgroundTint="@color/bahaya_button_bg"
-                android:text="Putuskan WiFi ini"
+                android:text="Buka pengaturan WiFi"
                 android:textColor="@color/bahaya_button_text"
                 android:textSize="14sp"
                 android:textStyle="bold"
                 android:textAllCaps="false"
                 android:visibility="gone" />
+
+            <Button
+                android:id="@+id/btnDetailTrust"
+                android:layout_width="match_parent"
+                android:layout_height="48dp"
+                android:layout_marginTop="12dp"
+                android:backgroundTint="@color/aman_accent"
+                android:text="Tandai jaringan ini sah"
+                android:textColor="@color/aman_button_text"
+                android:textSize="14sp"
+                android:textStyle="bold"
+                android:textAllCaps="false"
+                android:visibility="gone" />
+
+            <LinearLayout
+                android:id="@+id/layoutDetailTrusted"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:layout_marginTop="12dp"
+                android:visibility="gone">
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="Dipercaya oleh kamu"
+                    android:textSize="13sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/aman_text_accent" />
+
+                <TextView
+                    android:id="@+id/btnDetailRevokeTrust"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:background="?attr/selectableItemBackground"
+                    android:padding="8dp"
+                    android:text="Cabut kepercayaan"
+                    android:textSize="13sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/text_danger" />
+            </LinearLayout>
         </LinearLayout>
 
         <TextView
@@ -191,6 +234,45 @@
             android:lineSpacingExtra="2dp"
             android:visibility="gone" />
 
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/cardSecurityType"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="12dp"
+            app:cardCornerRadius="16dp"
+            app:cardElevation="0dp"
+            app:strokeWidth="1dp"
+            app:strokeColor="@color/surface_card_border"
+            app:cardBackgroundColor="@color/surface_card"
+            android:visibility="gone">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="16dp">
+
+                <TextView
+                    android:id="@+id/textDetailSecurityLabel"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textSize="15sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/text_primary"
+                    tools:text="Keamanan: Terbuka (Tanpa kata sandi)" />
+
+                <TextView
+                    android:id="@+id/textDetailSecurityAdvice"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:textSize="12sp"
+                    android:textColor="@color/text_secondary"
+                    android:lineSpacingExtra="2dp"
+                    tools:text="Jaringan ini tidak memakai kata sandi." />
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+
         <LinearLayout
             android:id="@+id/containerExplanationCards"
             android:layout_width="match_parent"
@@ -201,7 +283,7 @@
             <include layout="@layout/item_explanation_card" android:id="@+id/explainTls" />
             <include layout="@layout/item_explanation_card" android:id="@+id/explainSignal" />
             <include layout="@layout/item_explanation_card" android:id="@+id/explainLatency" />
-            <include layout="@layout/item_explanation_card" android:id="@+id/explainArp" />
+            <include layout="@layout/item_explanation_card" android:id="@+id/explainConfig" />
 
         </LinearLayout>
 

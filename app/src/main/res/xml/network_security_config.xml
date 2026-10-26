@@ -6,8 +6,11 @@
             <pin digest="SHA-256">1YsYJ4fzLtelqcU9g9b4DAQfro7p6yKI3XixpzsD7eI=</pin>
             <pin digest="SHA-256">KqkYYX5LYAYP7XGemqzbtPPIA8x7BS/BbOIcAXf3j2k=</pin>
         </pin-set>
-        <trustkit-config enforcePinning="false">
+        <trustkit-config enforcePinning="true">
             <report-uri>http://localhost/susnet-pin-report</report-uri>
         </trustkit-config>
+    </domain-config>
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="true">connectivitycheck.gstatic.com</domain>
     </domain-config>
 </network-security-config>

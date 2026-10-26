@@ -24,5 +24,6 @@ data class NetworkConfigEntity(
     val dnsServers: String,
     val firstSeen: Long,
     val lastSeen: Long,
-    val seenCount: Int
+    val seenCount: Int,
+    val userTrusted: Boolean = false
 )

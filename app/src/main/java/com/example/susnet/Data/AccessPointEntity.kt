@@ -23,5 +23,6 @@ data class AccessPointEntity(
     val bssid: String,
     val firstSeen: Long,
     val lastSeen: Long,
-    val seenCount: Int
+    val seenCount: Int,
+    val userTrusted: Boolean = false
 )

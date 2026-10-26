@@ -197,12 +197,24 @@
                         android:id="@+id/btnSlotBahayaDisconnect"
                         android:layout_width="match_parent"
                         android:layout_height="50dp"
-                        android:text="Putuskan WiFi ini"
+                        android:text="Buka pengaturan WiFi"
                         android:textSize="14sp"
                         android:textStyle="bold"
                         android:textAllCaps="false"
                         android:visibility="gone" />
                 </FrameLayout>
+
+                <TextView
+                    android:id="@+id/textWifiSecurity"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="10dp"
+                    android:gravity="center"
+                    android:textSize="12sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/text_secondary"
+                    tools:text="Keamanan: Jaringan Pribadi (WPA2)"
+                    android:visibility="gone" />
 
                 <RelativeLayout
                     android:layout_width="match_parent"
@@ -259,7 +271,7 @@
 
                     <include
                         layout="@layout/item_signal_card"
-                        android:id="@+id/cardArp" />
+                        android:id="@+id/cardConfig" />
                 </LinearLayout>
 
             </LinearLayout>

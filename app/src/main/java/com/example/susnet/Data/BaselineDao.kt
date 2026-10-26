@@ -28,4 +28,10 @@ interface BaselineDao {
 
     @Query("SELECT bssid FROM access_points WHERE networkId = :networkId")
     suspend fun getBssidsForNetwork(networkId: Long): List<String>
+
+    @Query("UPDATE access_points SET userTrusted = :trusted WHERE networkId = :networkId AND bssid = :bssid")
+    suspend fun setUserTrustedForAccessPoint(networkId: Long, bssid: String, trusted: Boolean)
+
+    @Query("UPDATE access_points SET userTrusted = 0 WHERE networkId = :networkId")
+    suspend fun revokeUserTrustedForNetworkAccessPoints(networkId: Long)
 }

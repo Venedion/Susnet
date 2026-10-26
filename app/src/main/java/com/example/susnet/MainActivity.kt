@@ -46,6 +46,13 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
+import android.net.Uri
+import android.os.Build
+import android.provider.Settings
+import androidx.core.app.NotificationManagerCompat
+import com.example.susnet.detection.ThreatEvaluatorFactory
+import com.example.susnet.notification.AutoCheckManager
+
 class MainActivity : AppCompatActivity() {
 
     private lateinit var threatEvaluator: ThreatEvaluator
@@ -55,6 +62,41 @@ class MainActivity : AppCompatActivity() {
     private var isEvaluating = false
     private var lastUpdatedMillis: Long = 0
     private var rotateAnimator: ObjectAnimator? = null
+
+    private fun openSystemNotificationSettings() {
+        try {
+            val intent = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).apply {
+                    putExtra(Settings.EXTRA_APP_PACKAGE, packageName)
+                }
+            } else {
+                Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                    data = Uri.fromParts("package", packageName, null)
+                }
+            }
+            startActivity(intent)
+        } catch (e: Exception) {
+            Toast.makeText(this, "Buka Pengaturan Notifikasi di HP Anda", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private val requestNotificationPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (isGranted) {
+            setNotifyEnabled(true)
+        } else {
+            setNotifyEnabled(false)
+            val root = findViewById<View>(R.id.main) ?: findViewById<View>(android.R.id.content)
+            if (root != null) {
+                Snackbar.make(root, "Izin notifikasi diperlukan untuk menampilkan peringatan WiFi", Snackbar.LENGTH_LONG)
+                    .setAction("Pengaturan") {
+                        openSystemNotificationSettings()
+                    }
+                    .show()
+            }
+        }
+    }
 
     private val requestPermissionsLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
@@ -372,9 +414,55 @@ class MainActivity : AppCompatActivity() {
             )
         }
 
+        val switchNotify = findViewById<androidx.appcompat.widget.SwitchCompat>(R.id.switchSettingsNotifications)
+        val prefs = getSharedPreferences("susnet_prefs", MODE_PRIVATE)
+        val isNotifyEnabled = prefs.getBoolean("notify_enabled", false)
+
+        switchNotify?.setOnCheckedChangeListener(null)
+        switchNotify?.isChecked = isNotifyEnabled
+        switchNotify?.setOnCheckedChangeListener { _, isChecked ->
+            if (isChecked) {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+                        requestNotificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                        return@setOnCheckedChangeListener
+                    }
+                }
+
+                if (!NotificationManagerCompat.from(this).areNotificationsEnabled()) {
+                    setNotifyEnabled(false)
+                    val root = findViewById<View>(R.id.main) ?: findViewById<View>(android.R.id.content)
+                    if (root != null) {
+                        Snackbar.make(root, "Izin notifikasi dinonaktifkan di sistem HP Anda", Snackbar.LENGTH_LONG)
+                            .setAction("Pengaturan") {
+                                openSystemNotificationSettings()
+                            }
+                            .show()
+                    }
+                    return@setOnCheckedChangeListener
+                }
+
+                setNotifyEnabled(true)
+            } else {
+                setNotifyEnabled(false)
+            }
+        }
+
         val statusLevel = StatusLevel.fromScore(latestResult?.threatLevel ?: 0)
         val palette = StatusPalette.from(statusLevel, this)
         updateSettingsCards(palette)
+    }
+
+    private fun setNotifyEnabled(enabled: Boolean) {
+        val prefs = getSharedPreferences("susnet_prefs", MODE_PRIVATE)
+        prefs.edit().putBoolean("notify_enabled", enabled).apply()
+        val switchNotify = findViewById<androidx.appcompat.widget.SwitchCompat>(R.id.switchSettingsNotifications)
+        switchNotify?.isChecked = enabled
+        if (enabled) {
+            AutoCheckManager.start(applicationContext)
+        } else {
+            AutoCheckManager.stop(applicationContext)
+        }
     }
 
     private fun updateSettingsCards(palette: StatusPalette) {
@@ -470,13 +558,10 @@ class MainActivity : AppCompatActivity() {
 
     private fun updateUi(result: ThreatEvaluator.ThreatResult) {
         latestResult = result
-        findViewById<TextView>(R.id.textSsid).text = result.currentSsid ?: "Tidak terhubung"
-        findViewById<TextView>(R.id.textScore).text = result.threatLevel.toString()
-
         val timeString = SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(Date(lastUpdatedMillis))
         findViewById<TextView>(R.id.textLastUpdated).text = "Diperbarui $timeString"
 
-        val statusLevel = StatusLevel.fromScore(result.threatLevel)
+        val statusLevel = if (result.isConnected) StatusLevel.fromScore(result.threatLevel) else StatusLevel.AMAN
         val palette = StatusPalette.from(statusLevel, this)
 
         findViewById<View>(R.id.main)?.setBackgroundColor(palette.bg)
@@ -495,6 +580,40 @@ class MainActivity : AppCompatActivity() {
 
         updateNavTabAppearance(currentSelectedTab, palette)
         updateSettingsCards(palette)
+
+        if (!result.isConnected) {
+            findViewById<TextView>(R.id.textSsid).text = "Tidak terhubung"
+            findViewById<TextView>(R.id.textScore).text = "–"
+            findViewById<TextView>(R.id.textStatusLabel).text = "Tidak terhubung"
+            findViewById<TextView>(R.id.textStatusDetail).text = "Sambungkan ke WiFi dan aktifkan izin serta layanan lokasi, lalu tekan segarkan"
+            findViewById<View>(R.id.statusCard)?.setBackgroundResource(R.drawable.bg_status_card_aman)
+            findViewById<View>(R.id.layoutStatusBadgePill)?.background?.setTint(palette.chipBg)
+            val iconStatus = findViewById<ImageView>(R.id.iconStatus)
+            iconStatus?.setImageResource(R.drawable.ic_status_normal)
+            iconStatus?.setColorFilter(palette.secondary)
+            findViewById<TextView>(R.id.textStatusLabel)?.setTextColor(palette.secondary)
+            findViewById<ScoreGaugeView>(R.id.scoreGaugeView)?.setScore(0, palette, animate = false)
+            findViewById<TextView>(R.id.textStatusExtraPill)?.text = "Status: Tidak aktif"
+            findViewById<Button>(R.id.btnSlotWaspadaDetail)?.visibility = View.GONE
+            findViewById<Button>(R.id.btnSlotBahayaDisconnect)?.visibility = View.GONE
+            findViewById<View>(R.id.textStatusExtraPill)?.visibility = View.VISIBLE
+            findViewById<TextView>(R.id.textWifiSecurity)?.visibility = View.GONE
+            return
+        }
+
+        findViewById<TextView>(R.id.textSsid).text = result.currentSsid ?: "Tidak terhubung"
+        findViewById<TextView>(R.id.textScore).text = result.threatLevel.toString()
+
+        val textWifiSecurity = findViewById<TextView>(R.id.textWifiSecurity)
+        if (textWifiSecurity != null) {
+            textWifiSecurity.visibility = View.VISIBLE
+            textWifiSecurity.text = result.securityLabel
+            if (result.securityType == com.example.susnet.detection.WifiSecurityChecker.SecurityType.OPEN || result.securityType == com.example.susnet.detection.WifiSecurityChecker.SecurityType.WEP) {
+                textWifiSecurity.setTextColor(palette.textAccent)
+            } else {
+                textWifiSecurity.setTextColor(palette.secondary)
+            }
+        }
 
         val statusLabel: String
         val bgDrawableRes: Int
@@ -534,7 +653,7 @@ class MainActivity : AppCompatActivity() {
 
         Log.d(
             "SusnetAudit",
-            "threatLevel=${result.threatLevel}, bssidScore=${result.bssidChangeScore}, tlsScore=${result.tlsChangeScore}, signalScore=${result.signalInstabilityScore}, latencyScore=${result.latencyDeviationScore}, configScore=${result.configChangeScore}"
+            "threatLevel=${result.threatLevel}, bssidScore=${result.bssidChangeScore}, tlsScore=${result.tlsChangeScore}, signalScore=${result.signalInstabilityScore}, latencyScore=${result.latencyDeviationScore}, configScore=${result.configChangeScore}, signalSamples=${result.signalSamples}, signalStdDev=${"%.2f".format(result.signalStdDev)}"
         )
 
         val abnormalCount = listOf(
@@ -592,6 +711,7 @@ class MainActivity : AppCompatActivity() {
                 btnWaspada?.visibility = View.GONE
                 btnBahaya?.visibility = View.VISIBLE
 
+                btnBahaya?.text = "Buka pengaturan WiFi"
                 btnBahaya?.backgroundTintList = ColorStateList.valueOf(palette.buttonBg)
                 btnBahaya?.setTextColor(palette.buttonText)
                 btnBahaya?.setOnClickListener {
@@ -604,19 +724,15 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        val signalNormalText = "${result.rssi} dBm · stabil"
-        val signalAbnormalText = "${result.rssi} dBm · naik-turun"
 
-        val latencyNormalText = if (result.latencyMs < 0) "Tidak dapat diukur" else "${result.latencyMs} ms · stabil"
-        val latencyAbnormalText = if (result.latencyMs < 0) "Tidak dapat diukur" else "${result.latencyMs} ms · naik-turun"
 
         val cardBssid = findViewById<View>(R.id.cardBssid)
         val cardTls = findViewById<View>(R.id.cardTls)
         val cardSignal = findViewById<View>(R.id.cardSignal)
         val cardLatency = findViewById<View>(R.id.cardLatency)
-        val cardArp = findViewById<View>(R.id.cardArp)
+        val cardConfig = findViewById<View>(R.id.cardConfig)
 
-        if (cardBssid != null && cardTls != null && cardSignal != null && cardLatency != null && cardArp != null) {
+        if (cardBssid != null && cardTls != null && cardSignal != null && cardLatency != null && cardConfig != null) {
             bindSignalCard(
                 cardBssid,
                 "Alamat WiFi",
@@ -640,8 +756,8 @@ class MainActivity : AppCompatActivity() {
                 "Sinyal",
                 R.drawable.ic_card_signal,
                 result.signalInstabilityScore,
-                signalNormalText,
-                signalAbnormalText,
+                signalSummary(result.rssi, result.signalInstabilityScore),
+                signalSummary(result.rssi, result.signalInstabilityScore),
                 palette
             )
             bindSignalCard(
@@ -649,12 +765,12 @@ class MainActivity : AppCompatActivity() {
                 "Latency",
                 R.drawable.ic_card_latency,
                 result.latencyDeviationScore,
-                latencyNormalText,
-                latencyAbnormalText,
+                latencySummary(result.latencyMs, result.latencyDeviationScore),
+                latencySummary(result.latencyMs, result.latencyDeviationScore),
                 palette
             )
             bindSignalCard(
-                cardArp,
+                cardConfig,
                 "Lalu lintas data",
                 R.drawable.ic_card_network,
                 result.configChangeScore,
@@ -668,7 +784,7 @@ class MainActivity : AppCompatActivity() {
                 cardTls to result.tlsChangeScore,
                 cardSignal to result.signalInstabilityScore,
                 cardLatency to result.latencyDeviationScore,
-                cardArp to result.configChangeScore
+                cardConfig to result.configChangeScore
             )
 
             val sortedCards = cardList.sortedByDescending { it.second >= 35 }
@@ -777,30 +893,18 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun setupThreatEvaluator() {
-        val wifiManager = applicationContext.getSystemService(WIFI_SERVICE) as WifiManager
-        val baselineStore = BaselineStore(applicationContext)
-        val database = SusnetDatabase.getInstance(applicationContext)
-        tlsPinningMonitor = TlsPinningMonitor(applicationContext)
-        tlsPinningMonitor.start()
-
-        threatEvaluator = ThreatEvaluator(
-            evilTwinDetector = EvilTwinDetector(wifiManager, baselineStore),
-            tlsPinningMonitor = tlsPinningMonitor,
-            signalStabilityMonitor = SignalStabilityMonitor(wifiManager),
-            latencyMonitor = LatencyMonitor(),
-            networkConfigMonitor = NetworkConfigMonitor(
-                applicationContext,
-                database.networkConfigDao()
-            ),
-            baselineStore = baselineStore,
-            detectionEventDao = database.detectionEventDao()
-        )
+        val (evaluator, monitor) = ThreatEvaluatorFactory.create(applicationContext, if (::tlsPinningMonitor.isInitialized) tlsPinningMonitor else null)
+        this.threatEvaluator = evaluator
+        this.tlsPinningMonitor = monitor
     }
 
     private fun openDetailScreen() {
         val result = latestResult ?: return
         val intent = Intent(this, DetailActivity::class.java).apply {
             putExtra(DetailActivity.EXTRA_SSID, result.currentSsid ?: "Tidak diketahui")
+            putExtra(DetailActivity.EXTRA_BSSID, result.currentBssid ?: "")
+            putExtra(DetailActivity.EXTRA_GATEWAY, result.gatewayIp ?: "")
+            putExtra(DetailActivity.EXTRA_DNS, result.dnsServers ?: "")
             putExtra(DetailActivity.EXTRA_THREAT_LEVEL, result.threatLevel)
             putExtra(DetailActivity.EXTRA_BSSID_SCORE, result.bssidChangeScore)
             putExtra(DetailActivity.EXTRA_TLS_SCORE, result.tlsChangeScore)
@@ -812,6 +916,9 @@ class MainActivity : AppCompatActivity() {
             putExtra(DetailActivity.EXTRA_SIGNAL_DETAIL, result.signalDetail)
             putExtra(DetailActivity.EXTRA_LATENCY_DETAIL, result.latencyDetail)
             putExtra(DetailActivity.EXTRA_CONFIG_DETAIL, result.configDetail)
+            putExtra(DetailActivity.EXTRA_SECURITY_TYPE, result.securityType.name)
+            putExtra(DetailActivity.EXTRA_SECURITY_LABEL, result.securityLabel)
+            putExtra(DetailActivity.EXTRA_SECURITY_ADVICE, result.securityAdvice)
             putExtra(DetailActivity.EXTRA_UPDATED_AT, lastUpdatedMillis)
         }
         startActivity(intent)
@@ -822,5 +929,24 @@ class MainActivity : AppCompatActivity() {
             tlsPinningMonitor.stop()
         }
         super.onDestroy()
+    }
+
+    companion object {
+        fun signalSummary(rssi: Int, score: Int): String {
+            return when {
+                score == 0 -> "$rssi dBm · stabil"
+                score < 35 -> "$rssi dBm · sedikit berubah"
+                else -> "$rssi dBm · naik-turun"
+            }
+        }
+
+        fun latencySummary(latencyMs: Long, score: Int): String {
+            if (latencyMs < 0) return "Tidak dapat diukur"
+            return when {
+                score == 0 -> "$latencyMs ms · stabil"
+                score < 35 -> "$latencyMs ms · sedikit berubah"
+                else -> "$latencyMs ms · naik-turun"
+            }
+        }
     }
 }

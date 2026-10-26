@@ -16,4 +16,10 @@ interface NetworkConfigDao {
 
     @Update
     suspend fun update(config: NetworkConfigEntity)
+
+    @Query("UPDATE network_configs SET userTrusted = :trusted WHERE networkId = :networkId AND gatewayIp = :gatewayIp AND dnsServers = :dnsServers")
+    suspend fun setUserTrustedForConfig(networkId: Long, gatewayIp: String, dnsServers: String, trusted: Boolean)
+
+    @Query("UPDATE network_configs SET userTrusted = 0 WHERE networkId = :networkId")
+    suspend fun revokeUserTrustedForNetworkConfigs(networkId: Long)
 }

@@ -21,6 +21,9 @@ import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.transition.AutoTransition
 import androidx.transition.TransitionManager
+import androidx.lifecycle.lifecycleScope
+import com.example.susnet.data.BaselineStore
+import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -43,6 +46,9 @@ class DetailActivity : AppCompatActivity() {
         }
 
         val ssid = intent.getStringExtra(EXTRA_SSID) ?: "Tidak diketahui"
+        val bssid = intent.getStringExtra(EXTRA_BSSID).orEmpty()
+        val gateway = intent.getStringExtra(EXTRA_GATEWAY).orEmpty()
+        val dns = intent.getStringExtra(EXTRA_DNS).orEmpty()
         val threatLevel = intent.getIntExtra(EXTRA_THREAT_LEVEL, 0)
         val bssidScore = intent.getIntExtra(EXTRA_BSSID_SCORE, 0)
         val tlsScore = intent.getIntExtra(EXTRA_TLS_SCORE, 0)
@@ -55,6 +61,10 @@ class DetailActivity : AppCompatActivity() {
         val signalDetail = intent.getStringExtra(EXTRA_SIGNAL_DETAIL).orEmpty()
         val latencyDetail = intent.getStringExtra(EXTRA_LATENCY_DETAIL).orEmpty()
         val configDetail = intent.getStringExtra(EXTRA_CONFIG_DETAIL).orEmpty()
+
+        val securityTypeName = intent.getStringExtra(EXTRA_SECURITY_TYPE)
+        val securityLabel = intent.getStringExtra(EXTRA_SECURITY_LABEL).orEmpty()
+        val securityAdvice = intent.getStringExtra(EXTRA_SECURITY_ADVICE).orEmpty()
 
         val updatedAt = intent.getLongExtra(EXTRA_UPDATED_AT, System.currentTimeMillis())
         val timeString = if (updatedAt > 0) {
@@ -136,8 +146,33 @@ class DetailActivity : AppCompatActivity() {
         actionView?.text = actionText
         actionView?.setTextColor(palette.textAccent)
 
+        val cardSecurity = findViewById<com.google.android.material.card.MaterialCardView>(R.id.cardSecurityType)
+        val textSecurityLabel = findViewById<TextView>(R.id.textDetailSecurityLabel)
+        val textSecurityAdvice = findViewById<TextView>(R.id.textDetailSecurityAdvice)
+
+        if (securityLabel.isNotBlank()) {
+            cardSecurity?.visibility = View.VISIBLE
+            textSecurityLabel?.text = securityLabel
+            textSecurityAdvice?.text = securityAdvice
+
+            cardSecurity?.setCardBackgroundColor(palette.surface)
+            if (securityTypeName == com.example.susnet.detection.WifiSecurityChecker.SecurityType.OPEN.name ||
+                securityTypeName == com.example.susnet.detection.WifiSecurityChecker.SecurityType.WEP.name
+            ) {
+                cardSecurity?.strokeColor = palette.accent
+                cardSecurity?.strokeWidth = (1.5f * resources.displayMetrics.density).toInt()
+                textSecurityLabel?.setTextColor(palette.textAccent)
+            } else {
+                cardSecurity?.strokeColor = ContextCompat.getColor(this, R.color.surface_card_border)
+                cardSecurity?.strokeWidth = (1f * resources.displayMetrics.density).toInt()
+                textSecurityLabel?.setTextColor(ContextCompat.getColor(this, R.color.text_primary))
+            }
+        } else {
+            cardSecurity?.visibility = View.GONE
+        }
+
         val btnDisconnect = findViewById<Button>(R.id.btnDetailDisconnectWifi)
-        if (statusLevel == StatusLevel.BAHAYA) {
+        if (statusLevel == StatusLevel.BAHAYA || statusLevel == StatusLevel.WASPADA) {
             btnDisconnect?.visibility = View.VISIBLE
             btnDisconnect?.setOnClickListener {
                 try {
@@ -148,6 +183,62 @@ class DetailActivity : AppCompatActivity() {
             }
         } else {
             btnDisconnect?.visibility = View.GONE
+        }
+
+        val btnTrust = findViewById<Button>(R.id.btnDetailTrust)
+        val layoutTrusted = findViewById<View>(R.id.layoutDetailTrusted)
+        val btnRevokeTrust = findViewById<TextView>(R.id.btnDetailRevokeTrust)
+
+        lifecycleScope.launch {
+            val baselineStore = BaselineStore(applicationContext)
+            val isTrusted = if (bssid.isNotBlank()) baselineStore.isCurrentTrusted(ssid, bssid, gateway, dns) else false
+
+            if (isTrusted) {
+                btnTrust?.visibility = View.GONE
+                layoutTrusted?.visibility = View.VISIBLE
+            } else {
+                layoutTrusted?.visibility = View.GONE
+                btnTrust?.visibility = View.VISIBLE
+            }
+        }
+
+        btnTrust?.setOnClickListener {
+            val title: String
+            val message: String
+            val positiveLabel: String
+
+            if (statusLevel == StatusLevel.BAHAYA) {
+                title = "Konfirmasi Peringatan Bahaya"
+                message = "PERINGATAN: Jaringan ini terdeteksi Bahaya! Dengan menandai ini sah, Susnet tidak akan lagi memberi peringatan untuk perangkat WiFi dan pengaturan jaringan ini. Lakukan hanya jika kamu 100% yakin jaringan ini aman."
+                positiveLabel = "Saya yakin, tandai sah"
+            } else {
+                title = "Tandai jaringan ini sah?"
+                message = "Dengan menandai ini, Susnet tidak akan lagi memberi peringatan untuk perangkat WiFi dan pengaturan jaringan ini. Lakukan hanya jika kamu yakin jaringan ini milikmu atau milik tempat yang kamu percaya."
+                positiveLabel = "Tandai sah"
+            }
+
+            com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
+                .setTitle(title)
+                .setMessage(message)
+                .setNegativeButton("Batal", null)
+                .setPositiveButton(positiveLabel) { _, _ ->
+                    lifecycleScope.launch {
+                        val baselineStore = BaselineStore(applicationContext)
+                        baselineStore.trustCurrent(ssid, bssid, gateway, dns)
+                        Toast.makeText(this@DetailActivity, "Jaringan ditandai sah", Toast.LENGTH_SHORT).show()
+                        finish()
+                    }
+                }
+                .show()
+        }
+
+        btnRevokeTrust?.setOnClickListener {
+            lifecycleScope.launch {
+                val baselineStore = BaselineStore(applicationContext)
+                baselineStore.revokeTrust(ssid)
+                Toast.makeText(this@DetailActivity, "Kepercayaan dicabut", Toast.LENGTH_SHORT).show()
+                finish()
+            }
         }
 
         val cardActionsContainer = findViewById<View>(R.id.cardActionsContainer)
@@ -227,7 +318,7 @@ class DetailActivity : AppCompatActivity() {
                 label = "Sinyal",
                 tileIconRes = R.drawable.ic_card_signal,
                 score = signalScore,
-                normalExplanation = "Kekuatan sinyal WiFi stabil, sesuai kondisi biasanya.",
+                normalExplanation = if (signalScore in 1..34) "Kekuatan sinyal bergoyang sedikit, masih dalam batas wajar untuk WiFi di dalam ruangan." else "Kekuatan sinyal WiFi stabil, sesuai kondisi biasanya.",
                 abnormalExplanation = "Kekuatan sinyal WiFi naik turun tidak wajar. Ini bisa karena gangguan biasa, atau ada perangkat lain yang memengaruhi koneksi.",
                 detail = signalDetail,
                 possibleCauses = "• Berpindah posisi atau terhalang dinding\n• Gangguan dari perangkat atau jaringan lain di sekitar"
@@ -236,7 +327,7 @@ class DetailActivity : AppCompatActivity() {
                 label = "Latency",
                 tileIconRes = R.drawable.ic_card_latency,
                 score = latencyScore,
-                normalExplanation = "Waktu respons koneksi stabil, sesuai kondisi biasanya.",
+                normalExplanation = if (latencyScore in 1..34) "Waktu respons berubah sedikit, masih dalam batas wajar." else "Waktu respons koneksi stabil, sesuai kondisi biasanya.",
                 abnormalExplanation = "Waktu respons koneksi naik turun tidak wajar. Ini bisa karena jaringan sedang padat, atau ada pihak lain yang menyisip di jalur koneksimu.",
                 detail = latencyDetail,
                 possibleCauses = "• Jalur lalu lintas data dialihkan atau diinspeksi oleh perangkat tambahan\n• Padatnya penggunaan bandwidth pada jaringan ini"
@@ -403,6 +494,9 @@ class DetailActivity : AppCompatActivity() {
 
     companion object {
         const val EXTRA_SSID = "extra_ssid"
+        const val EXTRA_BSSID = "extra_bssid"
+        const val EXTRA_GATEWAY = "extra_gateway"
+        const val EXTRA_DNS = "extra_dns"
         const val EXTRA_THREAT_LEVEL = "extra_threat_level"
         const val EXTRA_BSSID_SCORE = "extra_bssid_score"
         const val EXTRA_TLS_SCORE = "extra_tls_score"
@@ -414,6 +508,9 @@ class DetailActivity : AppCompatActivity() {
         const val EXTRA_SIGNAL_DETAIL = "extra_signal_detail"
         const val EXTRA_LATENCY_DETAIL = "extra_latency_detail"
         const val EXTRA_CONFIG_DETAIL = "extra_config_detail"
+        const val EXTRA_SECURITY_TYPE = "extra_security_type"
+        const val EXTRA_SECURITY_LABEL = "extra_security_label"
+        const val EXTRA_SECURITY_ADVICE = "extra_security_advice"
         const val EXTRA_UPDATED_AT = "extra_updated_at"
     }
 }

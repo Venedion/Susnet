@@ -54,13 +54,15 @@ class NetworkConfigMonitor(
 
         val isDominant = dominant != null && match?.id == dominant.id
         val hasDominant = dominant != null
+        val userTrusted = match?.userTrusted ?: false
 
         val score = computeConfigScore(
             hasDominant = hasDominant,
             isDominant = isDominant,
             confidence = confidence,
             gatewayChanged = gatewayChanged,
-            dnsChanged = dnsChanged
+            dnsChanged = dnsChanged,
+            userTrusted = userTrusted
         )
 
         val detail = when {
@@ -89,15 +91,15 @@ class NetworkConfigMonitor(
                     "Konfigurasi jaringan ini berbeda dari yang biasa."
                 }
 
-                if (match != null && confidence != Confidence.HIGH) {
+                if (match != null && (confidence == Confidence.HIGH || userTrusted)) {
+                    "$changeStr Gateway ${current.gatewayIp} dan DNS ${dnsText(current.dnsServers)} pernah terlihat ${match.seenCount} kali."
+                } else if (match != null) {
                     val ageMs = now - match.firstSeen
                     val days = ageMs / (24 * 60 * 60 * 1000L)
                     val ageStr = if (days < 1) "kurang dari 1 hari" else "$days hari"
                     "$changeStr Konfigurasi ini baru terlihat ${match.seenCount} kali dalam $ageStr. Dipercaya setelah dilihat minimal 5 kali dalam 3 hari."
-                } else if (match == null) {
-                    "$changeStr Konfigurasi yang biasa sudah terlihat ${dominant.seenCount} kali, sedangkan yang sekarang baru pertama kali."
                 } else {
-                    "$changeStr Gateway ${current.gatewayIp} dan DNS ${dnsText(current.dnsServers)} pernah terlihat ${match.seenCount} kali, tetapi bukan konfigurasi yang paling sering dipakai jaringan ini."
+                    "$changeStr Konfigurasi yang biasa sudah terlihat ${dominant.seenCount} kali, sedangkan yang sekarang baru pertama kali."
                 }
             }
         }
@@ -152,10 +154,12 @@ class NetworkConfigMonitor(
             isDominant: Boolean,
             confidence: Confidence,
             gatewayChanged: Boolean,
-            dnsChanged: Boolean
+            dnsChanged: Boolean,
+            userTrusted: Boolean = false
         ): Int {
             if (!hasDominant) return 0
             if (isDominant) return 0
+            if (userTrusted) return 0
 
             return if (confidence == Confidence.HIGH) {
                 25

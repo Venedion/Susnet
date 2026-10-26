@@ -1,8 +1,9 @@
-package com.example.susnet.com.example.susnet
+package com.example.susnet
 
 import android.app.Application
 import androidx.appcompat.app.AppCompatDelegate
 import com.datatheorem.android.trustkit.TrustKit
+import com.example.susnet.notification.AutoCheckManager
 
 class SusnetApplication : Application() {
 
@@ -17,5 +18,7 @@ class SusnetApplication : Application() {
         } else {
             AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_NO)
         }
+
+        AutoCheckManager.start(this)
     }
 }

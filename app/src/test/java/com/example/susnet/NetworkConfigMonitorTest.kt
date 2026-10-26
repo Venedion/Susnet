@@ -37,7 +37,7 @@ class NetworkConfigMonitorTest {
 
     @Test
     fun test3_knownNonDominant_seenCount1_age0_returns85() {
-        val confidence = BaselineStore.computeConfidence(1, now, now) // LOW
+        val confidence = BaselineStore.computeConfidence(1, now, now)
         val score = NetworkConfigMonitor.computeConfigScore(
             hasDominant = true,
             isDominant = false,
@@ -50,7 +50,7 @@ class NetworkConfigMonitorTest {
 
     @Test
     fun test4_knownNonDominant_seenCount5_age2Days_returns85() {
-        val confidence = BaselineStore.computeConfidence(5, now - 2 * dayMs, now) // MEDIUM
+        val confidence = BaselineStore.computeConfidence(5, now - 2 * dayMs, now)
         val score = NetworkConfigMonitor.computeConfigScore(
             hasDominant = true,
             isDominant = false,
@@ -63,7 +63,7 @@ class NetworkConfigMonitorTest {
 
     @Test
     fun test5_knownNonDominant_seenCount5_age3Days_returns25() {
-        val confidence = BaselineStore.computeConfidence(5, now - 3 * dayMs, now) // HIGH
+        val confidence = BaselineStore.computeConfidence(5, now - 3 * dayMs, now)
         val score = NetworkConfigMonitor.computeConfigScore(
             hasDominant = true,
             isDominant = false,
@@ -96,5 +96,18 @@ class NetworkConfigMonitorTest {
             dnsChanged = true
         )
         assertEquals(65, score)
+    }
+
+    @Test
+    fun test8_userTrustedConfig_returns0() {
+        val score = NetworkConfigMonitor.computeConfigScore(
+            hasDominant = true,
+            isDominant = false,
+            confidence = Confidence.LOW,
+            gatewayChanged = true,
+            dnsChanged = true,
+            userTrusted = true
+        )
+        assertEquals(0, score)
     }
 }
