@@ -1,1 +1,8 @@
 /build
+hs_err_pid*.log
+.kotlin/
+*.apk
+*.aab
+*.hprof
+*.jks
+*.keystore
