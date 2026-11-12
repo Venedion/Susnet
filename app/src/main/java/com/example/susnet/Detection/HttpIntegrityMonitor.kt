@@ -7,7 +7,11 @@ import java.net.URL
 
 class HttpIntegrityMonitor {
 
-    data class Result(val score: Int, val detail: String)
+    data class Result(
+        val score: Int,
+        val detail: String,
+        val outcome: Outcome
+    )
 
     enum class Outcome { CLEAN, INTERCEPTED, INCONCLUSIVE }
 
@@ -66,15 +70,18 @@ class HttpIntegrityMonitor {
             return when (outcome) {
                 Outcome.CLEAN -> Result(
                     0,
-                    "Lalu lintas HTTP biasa aman dan tidak dialihkan."
+                    "Lalu lintas HTTP biasa aman dan tidak dialihkan.",
+                    Outcome.CLEAN
                 )
                 Outcome.INTERCEPTED -> Result(
                     60,
-                    "Permintaan HTTP biasa dialihkan atau isinya berubah. Ini umum pada WiFi yang meminta login (hotel, kafe, kampus), tetapi juga bisa berarti ada pihak yang mengubah lalu lintas. Jangan memasukkan data sensitif sebelum yakin."
+                    "Permintaan HTTP biasa dialihkan atau isinya berubah. Ini umum pada WiFi yang meminta login (hotel, kafe, kampus), tetapi juga bisa berarti ada pihak yang mengubah lalu lintas. Jangan memasukkan data sensitif sebelum yakin.",
+                    Outcome.INTERCEPTED
                 )
                 Outcome.INCONCLUSIVE -> Result(
                     0,
-                    "Pemeriksaan tidak dapat dilakukan (tidak ada respons). Hasil ini bukan jaminan aman."
+                    "Pemeriksaan tidak dapat dilakukan (tidak ada respons). Hasil ini bukan jaminan aman.",
+                    Outcome.INCONCLUSIVE
                 )
             }
         }

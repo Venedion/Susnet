@@ -23,6 +23,7 @@ import androidx.transition.AutoTransition
 import androidx.transition.TransitionManager
 import androidx.lifecycle.lifecycleScope
 import com.example.susnet.data.BaselineStore
+import com.example.susnet.detection.WifiSecurityChecker
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -65,6 +66,16 @@ class DetailActivity : AppCompatActivity() {
         val securityTypeName = intent.getStringExtra(EXTRA_SECURITY_TYPE)
         val securityLabel = intent.getStringExtra(EXTRA_SECURITY_LABEL).orEmpty()
         val securityAdvice = intent.getStringExtra(EXTRA_SECURITY_ADVICE).orEmpty()
+
+        val tlsOutcomeName = intent.getStringExtra(EXTRA_TLS_OUTCOME)
+        val tlsOutcome = tlsOutcomeName?.let {
+            try { com.example.susnet.detection.TlsPinningMonitor.Outcome.valueOf(it) } catch (e: Exception) { null }
+        } ?: com.example.susnet.detection.TlsPinningMonitor.Outcome.INCONCLUSIVE
+
+        val httpOutcomeName = intent.getStringExtra(EXTRA_HTTP_OUTCOME)
+        val httpOutcome = httpOutcomeName?.let {
+            try { com.example.susnet.detection.HttpIntegrityMonitor.Outcome.valueOf(it) } catch (e: Exception) { null }
+        } ?: com.example.susnet.detection.HttpIntegrityMonitor.Outcome.INCONCLUSIVE
 
         val updatedAt = intent.getLongExtra(EXTRA_UPDATED_AT, System.currentTimeMillis())
         val timeString = if (updatedAt > 0) {
@@ -225,6 +236,10 @@ class DetailActivity : AppCompatActivity() {
                     lifecycleScope.launch {
                         val baselineStore = BaselineStore(applicationContext)
                         baselineStore.trustCurrent(ssid, bssid, gateway, dns)
+                        val currentSecurityType = runCatching { WifiSecurityChecker.SecurityType.valueOf(securityTypeName ?: "") }.getOrNull()
+                        if (currentSecurityType != null && currentSecurityType != WifiSecurityChecker.SecurityType.UNKNOWN) {
+                            baselineStore.saveSecurityBaseline(ssid, currentSecurityType)
+                        }
                         Toast.makeText(this@DetailActivity, "Jaringan ditandai sah", Toast.LENGTH_SHORT).show()
                         finish()
                     }
@@ -309,10 +324,28 @@ class DetailActivity : AppCompatActivity() {
                 label = "Sertifikat situs",
                 tileIconRes = R.drawable.ic_card_tls,
                 score = tlsScore,
-                normalExplanation = "Sertifikat keamanan situs yang dipantau masih sesuai dan belum berubah.",
-                abnormalExplanation = "Sertifikat keamanan salah satu situs yang dipantau terdeteksi berbeda dari yang seharusnya. Ini bisa berarti ada pihak lain yang mencoba menyadap koneksi.",
+                normalExplanation = when {
+                    tlsOutcome == com.example.susnet.detection.TlsPinningMonitor.Outcome.VALID && httpOutcome == com.example.susnet.detection.HttpIntegrityMonitor.Outcome.CLEAN ->
+                        "Sertifikat keamanan situs yang dipantau cocok dengan pin yang tersimpan, dan lalu lintas HTTP tidak dialihkan."
+                    tlsOutcome == com.example.susnet.detection.TlsPinningMonitor.Outcome.VALID ->
+                        "Sertifikat keamanan situs yang dipantau cocok dengan pin yang tersimpan."
+                    httpOutcome == com.example.susnet.detection.HttpIntegrityMonitor.Outcome.CLEAN ->
+                        "Lalu lintas HTTP biasa aman, tetapi sertifikat HTTPS tidak dapat diperiksa saat ini."
+                    else ->
+                        "Pemeriksaan sertifikat HTTPS maupun HTTP tidak dapat dilakukan saat ini (situs tidak merespons atau tidak ada internet)."
+                },
+                abnormalExplanation = when {
+                    tlsOutcome == com.example.susnet.detection.TlsPinningMonitor.Outcome.CERT_FAILURE && httpOutcome == com.example.susnet.detection.HttpIntegrityMonitor.Outcome.INTERCEPTED ->
+                        "Sertifikat keamanan situs yang dipantau berbeda dari yang seharusnya DAN lalu lintas HTTP biasa dialihkan."
+                    tlsOutcome == com.example.susnet.detection.TlsPinningMonitor.Outcome.CERT_FAILURE ->
+                        "Sertifikat keamanan salah satu situs yang dipantau terdeteksi berbeda dari yang seharusnya. Ini bisa berarti ada pihak lain yang mencoba menyadap koneksi."
+                    httpOutcome == com.example.susnet.detection.HttpIntegrityMonitor.Outcome.INTERCEPTED ->
+                        "Lalu lintas HTTP biasa dialihkan atau isinya berubah (umum pada WiFi portal login/halaman persetujuan)."
+                    else ->
+                        "Pemeriksaan sertifikat situs tidak dapat dipastikan saat ini."
+                },
                 detail = tlsDetail,
-                possibleCauses = "• Percobaan Man-in-the-Middle (MitM)\n• Proxy atau firewall jaringan publik yang membelokkan lalu lintas HTTPS"
+                possibleCauses = "• Percobaan Man-in-the-Middle (MitM)\n• Proxy atau firewall jaringan publik yang membelokkan lalu lintas HTTPS/HTTP"
             ),
             SignalInfo(
                 label = "Sinyal",
@@ -511,6 +544,9 @@ class DetailActivity : AppCompatActivity() {
         const val EXTRA_SECURITY_TYPE = "extra_security_type"
         const val EXTRA_SECURITY_LABEL = "extra_security_label"
         const val EXTRA_SECURITY_ADVICE = "extra_security_advice"
+        const val EXTRA_TLS_OUTCOME = "extra_tls_outcome"
+        const val EXTRA_HTTP_OUTCOME = "extra_http_outcome"
+        const val EXTRA_TLS_CARD_TEXT = "extra_tls_card_text"
         const val EXTRA_UPDATED_AT = "extra_updated_at"
     }
 }

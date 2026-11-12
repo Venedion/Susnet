@@ -14,6 +14,7 @@ class LatencyMonitor(
 ) {
 
     private val recentLatencies = ArrayDeque<Long>()
+    private val lock = Any()
 
     data class Result(
         val currentLatencyMs: Long,
@@ -31,18 +32,19 @@ class LatencyMonitor(
                 "Latency tidak dapat diukur: koneksi ke $host:$port gagal atau diblokir jaringan ini."
             )
 
-        recentLatencies.addLast(latency)
-        if (recentLatencies.size > windowSize) {
-            recentLatencies.removeFirst()
+        val (stdDev, samplesCount) = synchronized(lock) {
+            recentLatencies.addLast(latency)
+            if (recentLatencies.size > windowSize) {
+                recentLatencies.removeFirst()
+            }
+            Pair(computeStdDev(recentLatencies), recentLatencies.size)
         }
 
-        val stdDev = computeStdDev(recentLatencies)
-
-        val detail = if (recentLatencies.size < 2) {
-            "Waktu respons ke $host saat ini $latency ms. Baru ${recentLatencies.size} pengukuran, " +
+        val detail = if (samplesCount < 2) {
+            "Waktu respons ke $host saat ini $latency ms. Baru $samplesCount pengukuran, " +
                     "belum cukup untuk menilai kestabilan."
         } else {
-            "Waktu respons ke $host saat ini $latency ms. Dari ${recentLatencies.size} pengukuran terakhir, " +
+            "Waktu respons ke $host saat ini $latency ms. Dari $samplesCount pengukuran terakhir, " +
                     "simpangan baku ${"%.0f".format(stdDev)} ms (dianggap stabil jika di bawah " +
                     "${STABLE_THRESHOLD.toInt()} ms)."
         }

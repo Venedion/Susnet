@@ -13,8 +13,10 @@ constraintlayout = "2.2.0"
 room = "2.6.1"
 trustkit = "1.1.5"
 localbroadcastmanager = "1.1.0"
+lifecycleRuntimeKtx = "2.8.7"
 
 [libraries]
+androidx-lifecycle-runtime-ktx = { group = "androidx.lifecycle", name = "lifecycle-runtime-ktx", version.ref = "lifecycleRuntimeKtx" }
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 androidx-junit = { group = "androidx.test.ext", name = "junit", version.ref = "junitVersion" }

@@ -14,7 +14,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         DetectionEventEntity::class,
         NetworkConfigEntity::class
     ],
-    version = 4
+    version = 5
 )
 abstract class SusnetDatabase : RoomDatabase() {
 
@@ -30,6 +30,12 @@ abstract class SusnetDatabase : RoomDatabase() {
             }
         }
 
+        val MIGRATION_4_5 = object : Migration(4, 5) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL("ALTER TABLE networks ADD COLUMN securityType TEXT")
+            }
+        }
+
         @Volatile
         private var instance: SusnetDatabase? = null
 
@@ -39,7 +45,7 @@ abstract class SusnetDatabase : RoomDatabase() {
                     context.applicationContext,
                     SusnetDatabase::class.java,
                     "susnet.db"
-                ).addMigrations(MIGRATION_3_4).fallbackToDestructiveMigration().build().also { instance = it }
+                ).addMigrations(MIGRATION_3_4, MIGRATION_4_5).fallbackToDestructiveMigration().build().also { instance = it }
             }
     }
 }

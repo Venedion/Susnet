@@ -11,14 +11,18 @@ import com.datatheorem.android.trustkit.reporting.PinningFailureReport
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.net.URL
+import java.security.cert.CertPathValidatorException
 import java.security.cert.CertificateException
 import javax.net.ssl.HttpsURLConnection
-import javax.net.ssl.SSLHandshakeException
 import javax.net.ssl.SSLPeerUnverifiedException
 
 class TlsPinningMonitor(private val context: Context) {
 
-    data class Result(val score: Int, val detail: String)
+    data class Result(
+        val score: Int,
+        val detail: String,
+        val outcome: Outcome
+    )
 
     enum class Outcome { VALID, CERT_FAILURE, INCONCLUSIVE }
 
@@ -39,6 +43,7 @@ class TlsPinningMonitor(private val context: Context) {
     }
 
     fun start() {
+        android.util.Log.d("SusnetAudit", "TlsPinningMonitor started")
         LocalBroadcastManager.getInstance(context)
             .registerReceiver(receiver, IntentFilter(BackgroundReporter.REPORT_VALIDATION_EVENT))
     }
@@ -77,14 +82,23 @@ class TlsPinningMonitor(private val context: Context) {
                     90,
                     "Sertifikat keamanan situs ${host ?: "learn.uph.edu"} tidak cocok dengan pin yang tersimpan. " +
                             "Ini bisa berarti ada pihak yang menyisipkan sertifikat lain di tengah koneksi, " +
-                            "atau situs tersebut memang mengganti sertifikatnya."
+                            "atau situs tersebut memang mengganti sertifikatnya.",
+                    Outcome.CERT_FAILURE
                 )
             }
             outcome == Outcome.VALID -> {
-                Result(0, "Sertifikat situs yang dipantau cocok dengan pin yang tersimpan.")
+                Result(
+                    0,
+                    "Sertifikat situs yang dipantau cocok dengan pin yang tersimpan.",
+                    Outcome.VALID
+                )
             }
             else -> {
-                Result(0, "Pemeriksaan sertifikat tidak dapat dilakukan (situs tidak merespons atau tidak ada internet). Hasil ini bukan jaminan aman.")
+                Result(
+                    0,
+                    "Pemeriksaan sertifikat tidak dapat dilakukan (situs tidak merespons atau tidak ada internet). Hasil ini bukan jaminan aman.",
+                    Outcome.INCONCLUSIVE
+                )
             }
         }
     }
@@ -96,8 +110,8 @@ class TlsPinningMonitor(private val context: Context) {
             var cause: Throwable? = error
             while (cause != null) {
                 if (cause is SSLPeerUnverifiedException ||
-                    cause is SSLHandshakeException ||
-                    cause is CertificateException
+                    cause is CertificateException ||
+                    cause is CertPathValidatorException
                 ) {
                     return Outcome.CERT_FAILURE
                 }

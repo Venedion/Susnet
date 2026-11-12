@@ -108,7 +108,9 @@ class NetworkConfigMonitor(
             val sessionGap = BaselineStore.SESSION_GAP_MS
             val timeSinceLastSeen = now - match.lastSeen
             val newSeenCount = if (timeSinceLastSeen >= sessionGap) match.seenCount + 1 else match.seenCount
-            dao.update(match.copy(lastSeen = now, seenCount = newSeenCount))
+            val isHighConfidence = newSeenCount >= BaselineStore.HIGH_THRESHOLD && (now - match.firstSeen) >= BaselineStore.MIN_TRUST_AGE_MS
+            val trusted = match.userTrusted || isHighConfidence
+            dao.update(match.copy(lastSeen = now, seenCount = newSeenCount, userTrusted = trusted))
         } else {
             dao.insert(
                 NetworkConfigEntity(

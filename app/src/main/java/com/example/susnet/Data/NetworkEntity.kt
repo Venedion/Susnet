@@ -8,5 +8,6 @@ import androidx.room.PrimaryKey
 data class NetworkEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val ssid: String,
-    val lastSeen: Long
+    val lastSeen: Long,
+    val securityType: String? = null
 )

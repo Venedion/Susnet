@@ -7,19 +7,31 @@ import com.example.susnet.data.SusnetDatabase
 
 object ThreatEvaluatorFactory {
 
-    fun create(context: Context, existingMonitor: TlsPinningMonitor? = null): Pair<ThreatEvaluator, TlsPinningMonitor> {
+    @Volatile
+    private var evaluatorInstance: ThreatEvaluator? = null
+
+    @Volatile
+    private var signalMonitorInstance: SignalStabilityMonitor? = null
+
+    @Synchronized
+    fun get(context: Context): ThreatEvaluator {
+        val existing = evaluatorInstance
+        if (existing != null) return existing
+
         val appContext = context.applicationContext
         val wifiManager = appContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
         val baselineStore = BaselineStore(appContext)
         val database = SusnetDatabase.getInstance(appContext)
 
-        val monitor = existingMonitor ?: TlsPinningMonitor(appContext).apply { start() }
+        val tlsMonitor = TlsPinningMonitor(appContext).apply { start() }
+        val signalMonitor = SignalStabilityMonitor(wifiManager)
+        signalMonitorInstance = signalMonitor
 
         val evaluator = ThreatEvaluator(
             evilTwinDetector = EvilTwinDetector(wifiManager, baselineStore),
-            tlsPinningMonitor = monitor,
+            tlsPinningMonitor = tlsMonitor,
             httpIntegrityMonitor = HttpIntegrityMonitor(),
-            signalStabilityMonitor = SignalStabilityMonitor(wifiManager),
+            signalStabilityMonitor = signalMonitor,
             latencyMonitor = LatencyMonitor(),
             networkConfigMonitor = NetworkConfigMonitor(appContext, database.networkConfigDao()),
             baselineStore = baselineStore,
@@ -27,6 +39,15 @@ object ThreatEvaluatorFactory {
             wifiSecurityChecker = WifiSecurityChecker(appContext)
         )
 
-        return Pair(evaluator, monitor)
+        evaluatorInstance = evaluator
+        return evaluator
+    }
+
+    @Synchronized
+    fun signalMonitor(context: Context): SignalStabilityMonitor {
+        val existing = signalMonitorInstance
+        if (existing != null) return existing
+        get(context)
+        return signalMonitorInstance!!
     }
 }

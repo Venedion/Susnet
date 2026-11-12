@@ -34,4 +34,7 @@ interface BaselineDao {
 
     @Query("UPDATE access_points SET userTrusted = 0 WHERE networkId = :networkId")
     suspend fun revokeUserTrustedForNetworkAccessPoints(networkId: Long)
+
+    @Query("UPDATE networks SET securityType = :securityType WHERE ssid = :ssid")
+    suspend fun updateSecurityType(ssid: String, securityType: String?)
 }

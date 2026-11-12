@@ -5,11 +5,10 @@ import kotlin.math.sqrt
 
 class SignalStabilityMonitor(
     private val wifiManager: WifiManager,
-    private val windowSize: Int = 10
+    windowSize: Int = 10
 ) {
 
-    private val recentRssi = ArrayDeque<Int>()
-    private var lastBssid: String? = null
+    private val rssiWindow = RssiWindow(windowSize)
 
     data class Result(
         val currentRssi: Int,
@@ -19,22 +18,21 @@ class SignalStabilityMonitor(
         val samplesCount: Int
     )
 
-    fun evaluate(): Result {
+    @Synchronized
+    fun sample() {
         val connectionInfo = wifiManager.connectionInfo
-        val currentRssi = connectionInfo.rssi
-        val currentBssid = connectionInfo.bssid
+        val currentRssi = connectionInfo?.rssi ?: 0
+        val currentBssid = connectionInfo?.bssid
+        rssiWindow.add(currentBssid, currentRssi)
+    }
 
-        if (currentBssid == null || currentBssid != lastBssid) {
-            recentRssi.clear()
-            lastBssid = currentBssid
-        }
+    @Synchronized
+    fun evaluate(): Result {
+        sample()
+        val connectionInfo = wifiManager.connectionInfo
+        val currentRssi = connectionInfo?.rssi ?: 0
 
-        recentRssi.addLast(currentRssi)
-        if (recentRssi.size > windowSize) {
-            recentRssi.removeFirst()
-        }
-
-        val samplesList = recentRssi.toList()
+        val samplesList = rssiWindow.samples()
         val stdDev = computeStdDev(samplesList)
         val score = computeScore(samplesList)
 

@@ -33,6 +33,10 @@ import androidx.recyclerview.widget.RecyclerView
 import androidx.recyclerview.widget.ItemTouchHelper
 import com.google.android.material.snackbar.Snackbar
 import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
+import androidx.lifecycle.Lifecycle
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import com.example.susnet.data.BaselineStore
 import com.example.susnet.data.SusnetDatabase
 import com.example.susnet.detection.EvilTwinDetector
@@ -40,7 +44,6 @@ import com.example.susnet.detection.LatencyMonitor
 import com.example.susnet.detection.NetworkConfigMonitor
 import com.example.susnet.detection.SignalStabilityMonitor
 import com.example.susnet.detection.ThreatEvaluator
-import com.example.susnet.detection.TlsPinningMonitor
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -49,14 +52,23 @@ import java.util.Locale
 import android.net.Uri
 import android.os.Build
 import android.provider.Settings
+import android.content.ActivityNotFoundException
+import android.content.Context
+import android.location.LocationManager
+import androidx.core.app.ActivityCompat
+import androidx.core.location.LocationManagerCompat
 import androidx.core.app.NotificationManagerCompat
+import com.example.susnet.detection.Readiness
+import com.example.susnet.detection.Trigger
+import com.example.susnet.detection.PromptAction
+import com.example.susnet.detection.LocationSettingsHelper
 import com.example.susnet.detection.ThreatEvaluatorFactory
 import com.example.susnet.notification.AutoCheckManager
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 
 class MainActivity : AppCompatActivity() {
 
     private lateinit var threatEvaluator: ThreatEvaluator
-    private lateinit var tlsPinningMonitor: TlsPinningMonitor
     private var latestResult: ThreatEvaluator.ThreatResult? = null
 
     private var isEvaluating = false
@@ -98,20 +110,15 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private var waitingForSettings = false
+    private var isDialogShowing = false
+    private var hasRequestedPermissions = false
+
     private val requestPermissionsLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
-    ) { permissions ->
-        val fineGranted = permissions[Manifest.permission.ACCESS_FINE_LOCATION] ?: false
-        val coarseGranted = permissions[Manifest.permission.ACCESS_COARSE_LOCATION] ?: false
-        if (fineGranted || coarseGranted) {
-            runEvaluation()
-        } else {
-            Toast.makeText(this, "Izin lokasi diperlukan untuk memindai WiFi", Toast.LENGTH_SHORT).show()
-            findViewById<TextView>(R.id.textSsid).text = "Izin lokasi diperlukan"
-            findViewById<TextView>(R.id.textStatusDetail).text = "Izinkan akses lokasi agar nama dan alamat WiFi bisa dibaca"
-            findViewById<TextView>(R.id.textScore).text = "–"
-            findViewById<TextView>(R.id.textStatusLabel).text = "Tidak aktif"
-        }
+    ) {
+        hasRequestedPermissions = true
+        runEvaluation(Trigger.PERMISSION_RESULT)
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -136,23 +143,20 @@ class MainActivity : AppCompatActivity() {
         }
 
         setupThreatEvaluator()
+        setupSignalSampler()
         setupAnimations()
         setupNightMode()
         setupBottomNavigation()
         setupHistoryRecyclerView()
 
-        if (hasLocationPermission()) {
-            runEvaluation()
-        } else {
-            checkLocationPermissions()
-        }
+        runEvaluation(Trigger.LAUNCH)
 
         findViewById<View>(R.id.buttonDetail).setOnClickListener {
             openDetailScreen()
         }
 
         findViewById<View>(R.id.btnRefresh).setOnClickListener {
-            runEvaluation()
+            runEvaluation(Trigger.REFRESH)
         }
     }
 
@@ -509,8 +513,13 @@ class MainActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         val now = System.currentTimeMillis()
-        if (!isEvaluating && hasLocationPermission() && (now - lastUpdatedMillis > 30000)) {
-            runEvaluation()
+        if (waitingForSettings) {
+            waitingForSettings = false
+            if (!isEvaluating) {
+                runEvaluation(Trigger.RESUME)
+            }
+        } else if (!isEvaluating && (now - lastUpdatedMillis > 30000)) {
+            runEvaluation(Trigger.RESUME)
         }
     }
 
@@ -538,30 +547,174 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun runEvaluation() {
-        if (isEvaluating) return
+    private var pendingTrigger: Trigger? = null
+
+    private fun runEvaluation(trigger: Trigger) {
+        if (isEvaluating) {
+            pendingTrigger = trigger
+            return
+        }
 
         lifecycleScope.launch {
             toggleLoading(true)
+            findViewById<TextView>(R.id.textStatusDetail)?.text = "Memeriksa jaringan..."
             try {
+                val wifiManager = applicationContext.getSystemService(Context.WIFI_SERVICE) as? WifiManager
+                val wifiEnabled = wifiManager?.isWifiEnabled == true
+
+                val hasFine = ContextCompat.checkSelfPermission(this@MainActivity, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+                val hasCoarse = ContextCompat.checkSelfPermission(this@MainActivity, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
+
+                val locationManager = applicationContext.getSystemService(Context.LOCATION_SERVICE) as? LocationManager
+                val locationEnabled = locationManager != null && LocationManagerCompat.isLocationEnabled(locationManager)
+
                 val result = threatEvaluator.evaluateCurrentNetwork()
+                val ssidReadable = result.isConnected && !result.currentSsid.isNullOrBlank()
+
+                val readiness = LocationSettingsHelper.determine(
+                    wifiEnabled = wifiEnabled,
+                    hasFine = hasFine,
+                    hasCoarse = hasCoarse,
+                    locationEnabled = locationEnabled,
+                    ssidReadable = ssidReadable
+                )
+
                 lastUpdatedMillis = System.currentTimeMillis()
-                updateUi(result)
+                updateUi(result, readiness)
+
+                val permanentlyDenied = hasRequestedPermissions && !hasFine && !ActivityCompat.shouldShowRequestPermissionRationale(this@MainActivity, Manifest.permission.ACCESS_FINE_LOCATION)
+                val action = LocationSettingsHelper.decidePrompt(
+                    readiness = readiness,
+                    trigger = trigger,
+                    permanentlyDenied = permanentlyDenied,
+                    dialogShowing = isDialogShowing
+                )
+
+                executePromptAction(action)
+
             } catch (e: Exception) {
                 Log.e("MainActivity", "Evaluation failed", e)
                 Toast.makeText(this@MainActivity, "Gagal memperbarui, coba lagi", Toast.LENGTH_SHORT).show()
+                showEvaluationErrorUi()
             } finally {
                 toggleLoading(false)
+                val nextTrigger = pendingTrigger
+                pendingTrigger = null
+                if (nextTrigger != null) {
+                    runEvaluation(nextTrigger)
+                }
             }
         }
     }
 
-    private fun updateUi(result: ThreatEvaluator.ThreatResult) {
+    private fun executePromptAction(action: PromptAction) {
+        when (action) {
+            PromptAction.REQUEST_PERMISSION -> {
+                hasRequestedPermissions = true
+                requestPermissionsLauncher.launch(
+                    arrayOf(
+                        Manifest.permission.ACCESS_FINE_LOCATION,
+                        Manifest.permission.ACCESS_COARSE_LOCATION
+                    )
+                )
+            }
+            PromptAction.SHOW_LOCATION_DIALOG -> {
+                showLocationDialog()
+            }
+            PromptAction.SHOW_APP_SETTINGS_DIALOG -> {
+                showAppSettingsDialog()
+            }
+            PromptAction.NONE -> {}
+        }
+    }
+
+    private fun showLocationDialog() {
+        if (isDialogShowing) return
+        isDialogShowing = true
+        MaterialAlertDialogBuilder(this)
+            .setTitle("Layanan lokasi mati")
+            .setMessage("Layanan lokasi di ponsel mati. Android mewajibkannya agar Susnet bisa membaca nama WiFi. Susnet tidak memakai lokasimu untuk hal lain.")
+            .setPositiveButton("Buka pengaturan lokasi") { _, _ ->
+                waitingForSettings = true
+                try {
+                    startActivity(Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS))
+                } catch (e: Exception) {
+                    Toast.makeText(this, "Tidak dapat membuka Pengaturan Lokasi", Toast.LENGTH_SHORT).show()
+                }
+            }
+            .setNegativeButton("Nanti", null)
+            .setOnDismissListener {
+                isDialogShowing = false
+            }
+            .show()
+    }
+
+    private fun showAppSettingsDialog() {
+        if (isDialogShowing) return
+        isDialogShowing = true
+        MaterialAlertDialogBuilder(this)
+            .setTitle("Izin lokasi diperlukan")
+            .setMessage("Izin lokasi presisi telah ditolak. Buka pengaturan aplikasi untuk memberikan izin secara manual agar Susnet dapat bekerja.")
+            .setPositiveButton("Buka pengaturan aplikasi") { _, _ ->
+                waitingForSettings = true
+                try {
+                    val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                        data = Uri.fromParts("package", packageName, null)
+                    }
+                    startActivity(intent)
+                } catch (e: Exception) {
+                    Toast.makeText(this, "Tidak dapat membuka Pengaturan Aplikasi", Toast.LENGTH_SHORT).show()
+                }
+            }
+            .setNegativeButton("Nanti", null)
+            .setOnDismissListener {
+                isDialogShowing = false
+            }
+            .show()
+    }
+
+    private fun showEvaluationErrorUi() {
+        val statusLevel = StatusLevel.AMAN
+        val palette = StatusPalette.from(statusLevel, this)
+        findViewById<TextView>(R.id.textSsid)?.text = "Tidak terhubung"
+        findViewById<TextView>(R.id.textScore)?.text = "–"
+        findViewById<TextView>(R.id.textStatusLabel)?.text = "Tidak terhubung"
+        findViewById<TextView>(R.id.textStatusDetail)?.text = "Tidak dapat memeriksa jaringan saat ini"
+        findViewById<View>(R.id.statusCard)?.setBackgroundResource(R.drawable.bg_status_card_aman)
+        findViewById<View>(R.id.layoutStatusBadgePill)?.background?.setTint(palette.chipBg)
+        val iconStatus = findViewById<ImageView>(R.id.iconStatus)
+        iconStatus?.setImageResource(R.drawable.ic_status_normal)
+        iconStatus?.setColorFilter(palette.secondary)
+        findViewById<TextView>(R.id.textStatusLabel)?.setTextColor(palette.secondary)
+        findViewById<ScoreGaugeView>(R.id.scoreGaugeView)?.setScore(0, palette, animate = false)
+        findViewById<TextView>(R.id.textWifiSecurity)?.visibility = View.GONE
+        findViewById<TextView>(R.id.textStatusExtraPill)?.visibility = View.GONE
+        findViewById<Button>(R.id.btnSlotWaspadaDetail)?.visibility = View.GONE
+        findViewById<Button>(R.id.btnSlotBahayaDisconnect)?.visibility = View.GONE
+    }
+
+    private fun updateUi(result: ThreatEvaluator.ThreatResult, readinessParam: Readiness? = null) {
         latestResult = result
         val timeString = SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(Date(lastUpdatedMillis))
         findViewById<TextView>(R.id.textLastUpdated).text = "Diperbarui $timeString"
 
-        val statusLevel = if (result.isConnected) StatusLevel.fromScore(result.threatLevel) else StatusLevel.AMAN
+        val wifiManager = applicationContext.getSystemService(Context.WIFI_SERVICE) as? WifiManager
+        val wifiEnabled = wifiManager?.isWifiEnabled == true
+        val hasFine = ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+        val hasCoarse = ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
+        val locationManager = applicationContext.getSystemService(Context.LOCATION_SERVICE) as? LocationManager
+        val locationEnabled = locationManager != null && LocationManagerCompat.isLocationEnabled(locationManager)
+        val ssidReadable = result.isConnected && !result.currentSsid.isNullOrBlank()
+
+        val readiness = readinessParam ?: LocationSettingsHelper.determine(
+            wifiEnabled = wifiEnabled,
+            hasFine = hasFine,
+            hasCoarse = hasCoarse,
+            locationEnabled = locationEnabled,
+            ssidReadable = ssidReadable
+        )
+
+        val statusLevel = if (readiness == Readiness.OK && result.isConnected) StatusLevel.fromScore(result.threatLevel) else StatusLevel.AMAN
         val palette = StatusPalette.from(statusLevel, this)
 
         findViewById<View>(R.id.main)?.setBackgroundColor(palette.bg)
@@ -581,11 +734,13 @@ class MainActivity : AppCompatActivity() {
         updateNavTabAppearance(currentSelectedTab, palette)
         updateSettingsCards(palette)
 
-        if (!result.isConnected) {
-            findViewById<TextView>(R.id.textSsid).text = "Tidak terhubung"
+        val extraPill = findViewById<TextView>(R.id.textStatusExtraPill)
+        val btnWaspada = findViewById<Button>(R.id.btnSlotWaspadaDetail)
+        val btnBahaya = findViewById<Button>(R.id.btnSlotBahayaDisconnect)
+
+        if (readiness != Readiness.OK) {
             findViewById<TextView>(R.id.textScore).text = "–"
             findViewById<TextView>(R.id.textStatusLabel).text = "Tidak terhubung"
-            findViewById<TextView>(R.id.textStatusDetail).text = "Sambungkan ke WiFi dan aktifkan izin serta layanan lokasi, lalu tekan segarkan"
             findViewById<View>(R.id.statusCard)?.setBackgroundResource(R.drawable.bg_status_card_aman)
             findViewById<View>(R.id.layoutStatusBadgePill)?.background?.setTint(palette.chipBg)
             val iconStatus = findViewById<ImageView>(R.id.iconStatus)
@@ -593,11 +748,63 @@ class MainActivity : AppCompatActivity() {
             iconStatus?.setColorFilter(palette.secondary)
             findViewById<TextView>(R.id.textStatusLabel)?.setTextColor(palette.secondary)
             findViewById<ScoreGaugeView>(R.id.scoreGaugeView)?.setScore(0, palette, animate = false)
-            findViewById<TextView>(R.id.textStatusExtraPill)?.text = "Status: Tidak aktif"
-            findViewById<Button>(R.id.btnSlotWaspadaDetail)?.visibility = View.GONE
-            findViewById<Button>(R.id.btnSlotBahayaDisconnect)?.visibility = View.GONE
-            findViewById<View>(R.id.textStatusExtraPill)?.visibility = View.VISIBLE
             findViewById<TextView>(R.id.textWifiSecurity)?.visibility = View.GONE
+
+            when (readiness) {
+                Readiness.WIFI_OFF -> {
+                    findViewById<TextView>(R.id.textSsid).text = "WiFi mati"
+                    findViewById<TextView>(R.id.textStatusDetail).text = "Aktifkan WiFi di HP Anda untuk terhubung ke jaringan"
+                    extraPill?.visibility = View.GONE
+                    btnWaspada?.visibility = View.GONE
+                    btnBahaya?.visibility = View.VISIBLE
+                    btnBahaya?.text = "Buka pengaturan WiFi"
+                    btnBahaya?.backgroundTintList = ColorStateList.valueOf(palette.buttonBg)
+                    btnBahaya?.setTextColor(palette.buttonText)
+                    btnBahaya?.setOnClickListener {
+                        waitingForSettings = true
+                        try {
+                            startActivity(Intent(Settings.ACTION_WIFI_SETTINGS))
+                        } catch (e: Exception) {
+                            Toast.makeText(this, "Buka Pengaturan WiFi di HP Anda", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                }
+                Readiness.NO_PERMISSION, Readiness.COARSE_ONLY -> {
+                    findViewById<TextView>(R.id.textSsid).text = "Izin lokasi diperlukan"
+                    findViewById<TextView>(R.id.textStatusDetail).text = "Android mewajibkan izin lokasi presisi agar nama dan alamat WiFi bisa dibaca."
+                    extraPill?.visibility = View.GONE
+                    btnWaspada?.visibility = View.GONE
+                    btnBahaya?.visibility = View.VISIBLE
+                    btnBahaya?.text = "Buka pengaturan aplikasi"
+                    btnBahaya?.backgroundTintList = ColorStateList.valueOf(palette.buttonBg)
+                    btnBahaya?.setTextColor(palette.buttonText)
+                    btnBahaya?.setOnClickListener {
+                        showAppSettingsDialog()
+                    }
+                }
+                Readiness.LOCATION_SERVICE_OFF -> {
+                    findViewById<TextView>(R.id.textSsid).text = "Lokasi mati"
+                    findViewById<TextView>(R.id.textStatusDetail).text = "Layanan lokasi di ponsel mati. Android mewajibkannya agar Susnet bisa membaca nama WiFi."
+                    extraPill?.visibility = View.GONE
+                    btnWaspada?.visibility = View.GONE
+                    btnBahaya?.visibility = View.VISIBLE
+                    btnBahaya?.text = "Buka pengaturan lokasi"
+                    btnBahaya?.backgroundTintList = ColorStateList.valueOf(palette.buttonBg)
+                    btnBahaya?.setTextColor(palette.buttonText)
+                    btnBahaya?.setOnClickListener {
+                        showLocationDialog()
+                    }
+                }
+                Readiness.NOT_CONNECTED -> {
+                    findViewById<TextView>(R.id.textSsid).text = "Tidak terhubung"
+                    findViewById<TextView>(R.id.textStatusDetail).text = "Sambungkan ke WiFi, lalu tekan segarkan"
+                    extraPill?.text = "Status: Tidak aktif"
+                    extraPill?.visibility = View.VISIBLE
+                    btnWaspada?.visibility = View.GONE
+                    btnBahaya?.visibility = View.GONE
+                }
+                Readiness.OK -> {}
+            }
             return
         }
 
@@ -653,7 +860,7 @@ class MainActivity : AppCompatActivity() {
 
         Log.d(
             "SusnetAudit",
-            "threatLevel=${result.threatLevel}, bssidScore=${result.bssidChangeScore}, tlsScore=${result.tlsChangeScore}, signalScore=${result.signalInstabilityScore}, latencyScore=${result.latencyDeviationScore}, configScore=${result.configChangeScore}, signalSamples=${result.signalSamples}, signalStdDev=${"%.2f".format(result.signalStdDev)}"
+            "threatLevel=${result.threatLevel}, bssidScore=${result.bssidChangeScore}, tlsScore=${result.tlsChangeScore}, signalScore=${result.signalInstabilityScore}, latencyScore=${result.latencyDeviationScore}, configScore=${result.configChangeScore}, securityScore=${result.downgradeScore}, signalSamples=${result.signalSamples}, signalStdDev=${"%.2f".format(result.signalStdDev)}"
         )
 
         val abnormalCount = listOf(
@@ -673,48 +880,48 @@ class MainActivity : AppCompatActivity() {
         textStatusDetail?.text = detailText
         textStatusDetail?.setTextColor(palette.secondary)
 
-        val extraPill = findViewById<TextView>(R.id.textStatusExtraPill)
-        val btnWaspada = findViewById<Button>(R.id.btnSlotWaspadaDetail)
-        val btnBahaya = findViewById<Button>(R.id.btnSlotBahayaDisconnect)
+        val extraPillConn = findViewById<TextView>(R.id.textStatusExtraPill)
+        val btnWaspadaConn = findViewById<Button>(R.id.btnSlotWaspadaDetail)
+        val btnBahayaConn = findViewById<Button>(R.id.btnSlotBahayaDisconnect)
 
         when (statusLevel) {
             StatusLevel.AMAN -> {
-                btnWaspada?.visibility = View.GONE
-                btnBahaya?.visibility = View.GONE
-                extraPill?.visibility = View.VISIBLE
+                btnWaspadaConn?.visibility = View.GONE
+                btnBahayaConn?.visibility = View.GONE
+                extraPillConn?.visibility = View.VISIBLE
 
-                extraPill?.setBackgroundResource(R.drawable.bg_network_info_pill)
-                extraPill?.background?.setTint(palette.tile)
-                extraPill?.setTextColor(palette.ink)
+                extraPillConn?.setBackgroundResource(R.drawable.bg_network_info_pill)
+                extraPillConn?.background?.setTint(palette.tile)
+                extraPillConn?.setTextColor(palette.ink)
 
                 val gateway = result.gatewayIp
                 val dns = if (result.dnsServers.isNullOrEmpty()) "-" else result.dnsServers
-                extraPill?.text = if (gateway != null) {
+                extraPillConn?.text = if (gateway != null) {
                     "GW $gateway · DNS $dns"
                 } else {
                     "Info jaringan tidak tersedia"
                 }
             }
             StatusLevel.WASPADA -> {
-                extraPill?.visibility = View.GONE
-                btnBahaya?.visibility = View.GONE
-                btnWaspada?.visibility = View.VISIBLE
+                extraPillConn?.visibility = View.GONE
+                btnBahayaConn?.visibility = View.GONE
+                btnWaspadaConn?.visibility = View.VISIBLE
 
-                btnWaspada?.backgroundTintList = ColorStateList.valueOf(palette.buttonBg)
-                btnWaspada?.setTextColor(palette.buttonText)
-                btnWaspada?.setOnClickListener {
+                btnWaspadaConn?.backgroundTintList = ColorStateList.valueOf(palette.buttonBg)
+                btnWaspadaConn?.setTextColor(palette.buttonText)
+                btnWaspadaConn?.setOnClickListener {
                     openDetailScreen()
                 }
             }
             StatusLevel.BAHAYA -> {
-                extraPill?.visibility = View.GONE
-                btnWaspada?.visibility = View.GONE
-                btnBahaya?.visibility = View.VISIBLE
+                extraPillConn?.visibility = View.GONE
+                btnWaspadaConn?.visibility = View.GONE
+                btnBahayaConn?.visibility = View.VISIBLE
 
-                btnBahaya?.text = "Buka pengaturan WiFi"
-                btnBahaya?.backgroundTintList = ColorStateList.valueOf(palette.buttonBg)
-                btnBahaya?.setTextColor(palette.buttonText)
-                btnBahaya?.setOnClickListener {
+                btnBahayaConn?.text = "Buka pengaturan WiFi"
+                btnBahayaConn?.backgroundTintList = ColorStateList.valueOf(palette.buttonBg)
+                btnBahayaConn?.setTextColor(palette.buttonText)
+                btnBahayaConn?.setOnClickListener {
                     try {
                         startActivity(Intent(android.provider.Settings.ACTION_WIFI_SETTINGS))
                     } catch (e: Exception) {
@@ -739,7 +946,7 @@ class MainActivity : AppCompatActivity() {
                 R.drawable.ic_card_bssid,
                 result.bssidChangeScore,
                 "BSSID dikenal",
-                "BSSID baru, belum dikenal",
+                if (result.securityDowngrade) "Keamanan jaringan turun" else "BSSID baru, belum dikenal",
                 palette
             )
             bindSignalCard(
@@ -747,8 +954,8 @@ class MainActivity : AppCompatActivity() {
                 "Sertifikat situs",
                 R.drawable.ic_card_tls,
                 result.tlsChangeScore,
-                "Pin cocok",
-                "Sertifikat tidak cocok",
+                result.tlsCardText,
+                result.tlsCardText,
                 palette
             )
             bindSignalCard(
@@ -893,9 +1100,20 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun setupThreatEvaluator() {
-        val (evaluator, monitor) = ThreatEvaluatorFactory.create(applicationContext, if (::tlsPinningMonitor.isInitialized) tlsPinningMonitor else null)
-        this.threatEvaluator = evaluator
-        this.tlsPinningMonitor = monitor
+        this.threatEvaluator = ThreatEvaluatorFactory.get(applicationContext)
+    }
+
+    private fun setupSignalSampler() {
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                while (isActive) {
+                    if (!isEvaluating) {
+                        ThreatEvaluatorFactory.signalMonitor(applicationContext).sample()
+                    }
+                    delay(SAMPLE_INTERVAL_MS)
+                }
+            }
+        }
     }
 
     private fun openDetailScreen() {
@@ -919,19 +1137,29 @@ class MainActivity : AppCompatActivity() {
             putExtra(DetailActivity.EXTRA_SECURITY_TYPE, result.securityType.name)
             putExtra(DetailActivity.EXTRA_SECURITY_LABEL, result.securityLabel)
             putExtra(DetailActivity.EXTRA_SECURITY_ADVICE, result.securityAdvice)
+            putExtra(DetailActivity.EXTRA_TLS_OUTCOME, result.tlsOutcome.name)
+            putExtra(DetailActivity.EXTRA_HTTP_OUTCOME, result.httpOutcome.name)
+            putExtra(DetailActivity.EXTRA_TLS_CARD_TEXT, result.tlsCardText)
             putExtra(DetailActivity.EXTRA_UPDATED_AT, lastUpdatedMillis)
         }
         startActivity(intent)
     }
 
     override fun onDestroy() {
-        if (::tlsPinningMonitor.isInitialized) {
-            tlsPinningMonitor.stop()
-        }
         super.onDestroy()
     }
 
     companion object {
+        private const val SAMPLE_INTERVAL_MS = 5000L
+
+        fun shouldOpenLocationSettings(
+            fineGranted: Boolean,
+            locationEnabled: Boolean,
+            alreadyOpened: Boolean
+        ): Boolean {
+            return fineGranted && !locationEnabled && !alreadyOpened
+        }
+
         fun signalSummary(rssi: Int, score: Int): String {
             return when {
                 score == 0 -> "$rssi dBm · stabil"

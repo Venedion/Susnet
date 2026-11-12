@@ -6,6 +6,8 @@ import com.example.susnet.data.DetectionEventDao
 import com.example.susnet.data.DetectionEventEntity
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 class ThreatEvaluator(
     private val evilTwinDetector: EvilTwinDetector,
@@ -18,6 +20,8 @@ class ThreatEvaluator(
     private val detectionEventDao: DetectionEventDao,
     private val wifiSecurityChecker: WifiSecurityChecker
 ) {
+
+    private val evalMutex = Mutex()
 
     data class ThreatResult(
         val isConnected: Boolean = true,
@@ -42,10 +46,15 @@ class ThreatEvaluator(
         val securityLabel: String = "",
         val securityAdvice: String = "",
         val signalSamples: Int = 0,
-        val signalStdDev: Double = 0.0
+        val signalStdDev: Double = 0.0,
+        val securityDowngrade: Boolean = false,
+        val downgradeScore: Int = 0,
+        val tlsCardText: String = "",
+        val tlsOutcome: TlsPinningMonitor.Outcome = TlsPinningMonitor.Outcome.INCONCLUSIVE,
+        val httpOutcome: HttpIntegrityMonitor.Outcome = HttpIntegrityMonitor.Outcome.INCONCLUSIVE
     )
 
-    suspend fun evaluateCurrentNetwork(): ThreatResult {
+    suspend fun evaluateCurrentNetwork(): ThreatResult = evalMutex.withLock {
         val evilTwinResult = evilTwinDetector.evaluate()
         val notConnected = "Ponsel tidak terhubung ke WiFi, atau alamat WiFi tidak dapat dibaca."
 
@@ -73,7 +82,10 @@ class ThreatEvaluator(
                 securityLabel = "",
                 securityAdvice = "",
                 signalSamples = 0,
-                signalStdDev = 0.0
+                signalStdDev = 0.0,
+                tlsCardText = "",
+                tlsOutcome = TlsPinningMonitor.Outcome.INCONCLUSIVE,
+                httpOutcome = HttpIntegrityMonitor.Outcome.INCONCLUSIVE
             )
         }
 
@@ -95,8 +107,24 @@ class ThreatEvaluator(
         val configScore = configResult.configChangeScore
         val securityResult = wifiSecurityChecker.check()
 
+        val baselineSecurity = baselineStore.getSecurityBaseline(ssid)
+        val currentSecurity = securityResult.type
+        val downgradeScore = SecurityDowngrade.downgradeScore(baselineSecurity, currentSecurity)
+        val nextBaseline = SecurityDowngrade.nextBaseline(baselineSecurity, currentSecurity)
+        if (nextBaseline != null) {
+            baselineStore.saveSecurityBaseline(ssid, nextBaseline)
+        }
+
+        val bssidScoreFinal = maxOf(evilTwinResult.bssidChangeScore, downgradeScore)
+        val isDowngrade = downgradeScore > 0
+        val bssidDetailFinal = if (isDowngrade) {
+            "${evilTwinResult.detail} Jaringan \"$ssid\" sebelumnya terlihat memakai keamanan yang lebih kuat, sekarang ${securityResult.label}. Ini tanda khas jaringan tiruan, tetapi bisa juga karena pengaturan router diubah."
+        } else {
+            evilTwinResult.detail
+        }
+
         val threatLevel = FuzzyEngine.computeThreatLevel(
-            bssidChangeScore = evilTwinResult.bssidChangeScore,
+            bssidChangeScore = bssidScoreFinal,
             tlsChangeScore = tlsScoreFinal,
             signalInstabilityScore = signalResult.signalInstabilityScore,
             latencyDeviationScore = latencyResult.latencyDeviationScore,
@@ -125,7 +153,7 @@ class ThreatEvaluator(
                     networkId = networkId,
                     timestamp = currentTime,
                     threatLevel = threatLevel,
-                    bssidChangeScore = evilTwinResult.bssidChangeScore,
+                    bssidChangeScore = bssidScoreFinal,
                     tlsChangeScore = tlsScoreFinal,
                     signalInstabilityScore = signalResult.signalInstabilityScore,
                     latencyDeviationScore = latencyResult.latencyDeviationScore,
@@ -138,14 +166,14 @@ class ThreatEvaluator(
         return ThreatResult(
             isConnected = true,
             threatLevel = threatLevel,
-            bssidChangeScore = evilTwinResult.bssidChangeScore,
+            bssidChangeScore = bssidScoreFinal,
             tlsChangeScore = tlsScoreFinal,
             signalInstabilityScore = signalResult.signalInstabilityScore,
             latencyDeviationScore = latencyResult.latencyDeviationScore,
             configChangeScore = configScore,
             currentSsid = ssid,
             currentBssid = evilTwinResult.currentBssid,
-            bssidDetail = evilTwinResult.detail,
+            bssidDetail = bssidDetailFinal,
             tlsDetail = tlsDetailFinal,
             signalDetail = signalResult.detail,
             latencyDetail = latencyResult.detail,
@@ -158,7 +186,36 @@ class ThreatEvaluator(
             securityLabel = securityResult.label,
             securityAdvice = securityResult.advice,
             signalSamples = signalResult.samplesCount,
-            signalStdDev = signalResult.rssiStdDev
+            signalStdDev = signalResult.rssiStdDev,
+            securityDowngrade = isDowngrade,
+            downgradeScore = downgradeScore,
+            tlsCardText = tlsCardSummary(tlsResult.outcome, httpResult.outcome),
+            tlsOutcome = tlsResult.outcome,
+            httpOutcome = httpResult.outcome
         )
+    }
+
+    companion object {
+        fun tlsCardSummary(
+            tls: TlsPinningMonitor.Outcome,
+            http: HttpIntegrityMonitor.Outcome
+        ): String {
+            return when {
+                tls == TlsPinningMonitor.Outcome.CERT_FAILURE && http == HttpIntegrityMonitor.Outcome.INTERCEPTED ->
+                    "Sertifikat tidak cocok dan HTTP dialihkan"
+                tls == TlsPinningMonitor.Outcome.CERT_FAILURE ->
+                    "Sertifikat tidak cocok"
+                http == HttpIntegrityMonitor.Outcome.INTERCEPTED ->
+                    "Lalu lintas HTTP dialihkan"
+                tls == TlsPinningMonitor.Outcome.VALID && http == HttpIntegrityMonitor.Outcome.CLEAN ->
+                    "Pin cocok, HTTP aman"
+                tls == TlsPinningMonitor.Outcome.VALID && http == HttpIntegrityMonitor.Outcome.INCONCLUSIVE ->
+                    "Pin cocok, HTTP tidak terperiksa"
+                tls == TlsPinningMonitor.Outcome.INCONCLUSIVE && http == HttpIntegrityMonitor.Outcome.CLEAN ->
+                    "HTTP aman, sertifikat tidak terperiksa"
+                else ->
+                    "Tidak dapat diperiksa saat ini"
+            }
+        }
     }
 }
